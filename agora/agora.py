@@ -3,8 +3,8 @@ import logging
 from datetime import date, datetime
 from pathlib import Path
 
+from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from PIL import Image
-from playwright.async_api import Page, async_playwright
 
 from agora.config.settings import settings
 
@@ -13,6 +13,8 @@ LOGGER = logging.getLogger(__name__)
 TIMEOUT_1S = 1000
 TIMEOUT_3S = 3000
 TIMEOUT_5S = 5000
+
+STORAGE_STATE_FILE = "storage_state.json"
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -36,24 +38,20 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
         screenshot.show()
 
 
-async def _book(
+async def _select_date(
     page: Page,
     date: date,
 ):
     if date < datetime.now().date():
-        raise ValueError(f"Unable to book a slot in the past ({date})")
+        raise ValueError(f"Unable to select a date in the past ({date})")
 
-    LOGGER.info(f"Attempting to book an activity for {date}.")
-    await page.get_by_role("button", name="..//assets/img/reservations.").wait_for(
-        state="visible"
-    )
-    await page.screenshot(path=Path.cwd() / "runs" / "before_booking.png")
+    LOGGER.info(f"Selecting date {date}")
     await page.get_by_role("button", name="..//assets/img/reservations.").click(
         timeout=TIMEOUT_5S
     )
 
     target_month = date.strftime("%B")  # e.g., "août"
-    LOGGER.info(f"Selecting target month {target_month}.")
+    LOGGER.info(f"Selecting target month {target_month}")
     await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
     while not (
         await page.locator(".mdp-calendar-monthyear").text_content(timeout=TIMEOUT_1S)
@@ -61,21 +59,61 @@ async def _book(
     ):
         await page.get_by_role("button", name="next month").click(timeout=TIMEOUT_1S)
 
-    LOGGER.info(f"Selecting target day {date.day}.")
-    await page.get_by_role("button", name=str(date.day), exact=True).click(
-        timeout=TIMEOUT_5S
-    )
+    LOGGER.info(f"Selecting target day {date.day}")
+    await page.get_by_text(str(date.day), exact=True).click(timeout=TIMEOUT_5S)
+
+    LOGGER.info("Validating date selection")
+    await page.get_by_role("button", name="OK").click(timeout=TIMEOUT_1S)
 
 
-async def _login(page: Page, email: str, pwd: str):
-    LOGGER.info(f"Attempting to log in with email: {email}.")
+async def _login(page: Page, email: str, pwd: str) -> bool:
+    try:
+        await page.get_by_role("button", name="Display login dialog").wait_for(
+            state="visible", timeout=TIMEOUT_5S
+        )
+    except TimeoutError:
+        LOGGER.info("Login button not found. Skipping login")
+        return False
+
+    LOGGER.info(f"Attempting to log in with email: {email}")
     await page.get_by_role("button", name="Display login dialog").click(
         timeout=TIMEOUT_1S
     )
     await page.get_by_role("textbox", name="Courriel").fill(email, timeout=TIMEOUT_1S)
     await page.get_by_role("textbox", name="Mot de passe").fill(pwd, timeout=TIMEOUT_1S)
     await page.get_by_role("button", name="Login", exact=True).click(timeout=TIMEOUT_1S)
-    LOGGER.info("Login completed.")
+    LOGGER.info("Login completed")
+    return True
+
+
+async def _save_state(context: BrowserContext, save_dir: Path):
+    # Save the storage state to a JSON file
+    storage_state_path = save_dir / STORAGE_STATE_FILE
+    LOGGER.info(f"Saving storage state to {storage_state_path}")
+    await context.storage_state(path=storage_state_path)
+
+
+async def _get_context(browser: Browser, save_dir: Path) -> BrowserContext:
+    """
+    Get a browser context, loading the storage state if it exists.
+
+    Args:
+        browser (Browser): the browser instance.
+        save_dir (Path): the directory to save the storage state to.
+
+    Returns:
+        BrowserContext: the browser context.
+    """
+    storage_state_path = save_dir / STORAGE_STATE_FILE
+    if storage_state_path.exists():
+        LOGGER.info(f"Loading storage state from {storage_state_path}")
+        context = await browser.new_context(storage_state=storage_state_path)
+    else:
+        LOGGER.info(
+            f"No storage state found at {storage_state_path}. Creating new context."
+        )
+        context = await browser.new_context()
+    return context
 
 
 async def book_agora(
@@ -87,9 +125,6 @@ async def book_agora(
     save_dir: Path = Path.cwd() / "runs",
     locale_code: str = "fr_FR",
 ) -> None:
-    """
-    Book a slot on Agora Plus (synchronous version).
-    """
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -98,15 +133,20 @@ async def book_agora(
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=headless)
-        page = await browser.new_page()
-        LOGGER.info(f"Visiting {home_page} .")
+        context = await _get_context(browser, save_dir)
+        page = await context.new_page()
+        LOGGER.info(f"Visiting {home_page}")
         await page.goto(home_page, wait_until="networkidle")
         try:
-            await _login(page, email, pwd)
-            await _book(page, date)
+            # Login if required and save state
+            logged_in = await _login(page, email, pwd)
+            if logged_in:
+                await _save_state(context, save_dir)
+
+            await _select_date(page, date)
         except Exception as e:
             LOGGER.error(
-                f"An exception occured while visiting {home_page}.", exc_info=True
+                f"An exception occured while visiting {home_page}", exc_info=True
             )
             await _log_page(page, save_dir)
             raise e
