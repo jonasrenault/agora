@@ -1,13 +1,18 @@
+import locale
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
-from patchright.async_api import Page, async_playwright
 from PIL import Image
+from playwright.async_api import Page, async_playwright
+
+from agora.config.settings import settings
 
 LOGGER = logging.getLogger(__name__)
 
 TIMEOUT_1S = 1000
+TIMEOUT_3S = 3000
+TIMEOUT_5S = 5000
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -33,11 +38,32 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
 
 async def _book(
     page: Page,
-    date: datetime,
+    date: date,
 ):
+    if date < datetime.now().date():
+        raise ValueError(f"Unable to book a slot in the past ({date})")
+
     LOGGER.info(f"Attempting to book an activity for {date}.")
+    await page.get_by_role("button", name="..//assets/img/reservations.").wait_for(
+        state="visible"
+    )
+    await page.screenshot(path=Path.cwd() / "runs" / "before_booking.png")
     await page.get_by_role("button", name="..//assets/img/reservations.").click(
-        timeout=TIMEOUT_1S
+        timeout=TIMEOUT_5S
+    )
+
+    target_month = date.strftime("%B")  # e.g., "août"
+    LOGGER.info(f"Selecting target month {target_month}.")
+    await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
+    while not (
+        await page.locator(".mdp-calendar-monthyear").text_content(timeout=TIMEOUT_1S)
+        == target_month
+    ):
+        await page.get_by_role("button", name="next month").click(timeout=TIMEOUT_1S)
+
+    LOGGER.info(f"Selecting target day {date.day}.")
+    await page.get_by_role("button", name=str(date.day), exact=True).click(
+        timeout=TIMEOUT_5S
     )
 
 
@@ -53,17 +79,22 @@ async def _login(page: Page, email: str, pwd: str):
 
 
 async def book_agora(
-    home_page: str = "https://portalssl.agoraplus.fr/images_stmalo/v3/pck_home/home_view_local.html#/",
-    email: str = "khadiata.sow@gmail.com",
-    pwd: str = "",
+    home_page: str = settings.AGORA_HOME_PAGE,
+    email: str = settings.AGORA_EMAIL,
+    pwd: str = settings.AGORA_PASSWORD,
+    date: date = date(2026, 10, 21),
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
+    locale_code: str = "fr_FR",
 ) -> None:
     """
     Book a slot on Agora Plus (synchronous version).
     """
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Set the locale for date formatting
+    locale.setlocale(locale.LC_ALL, locale_code)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=headless)
@@ -72,7 +103,7 @@ async def book_agora(
         await page.goto(home_page, wait_until="networkidle")
         try:
             await _login(page, email, pwd)
-            await _book(page, datetime.now())
+            await _book(page, date)
         except Exception as e:
             LOGGER.error(
                 f"An exception occured while visiting {home_page}.", exc_info=True
