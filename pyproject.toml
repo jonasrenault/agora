@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "agora"
 version = "0.1.0"
@@ -5,14 +9,25 @@ description = "Réservation automatique de créneaux sur Agora Plus"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "patchright>=1.61.2",
+    "pillow>=12.3.0",
+    "playwright>=1.62.0",
     "requests>=2.34.2",
     "tqdm>=4.70.0",
+    "typer>=0.27.1",
 ]
 
 [project.optional-dependencies]
 stubs = [
     "types-requests>=2.33.0.20260712",
 ]
+
+[project.urls]
+"Homepage" = "https://github.com/jonasrenault/agora#readme"
+"Repository" = "https://github.com/jonasrenault/agora"
+
+[project.scripts]
+agora = "agora.cli.main:app"
 
 [dependency-groups]
 dev = [
