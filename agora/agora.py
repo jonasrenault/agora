@@ -15,6 +15,7 @@ TIMEOUT_3S = 3000
 TIMEOUT_5S = 5000
 
 STORAGE_STATE_FILE = "storage_state.json"
+SESSION_STORAGE_FILE = "session.json"
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -46,13 +47,10 @@ async def _select_date(
         raise ValueError(f"Unable to select a date in the past ({date})")
 
     LOGGER.info(f"Selecting date {date}")
-    await page.get_by_role("button", name="..//assets/img/reservations.").click(
-        timeout=TIMEOUT_5S
-    )
+    await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
 
     target_month = date.strftime("%B")  # e.g., "août"
     LOGGER.info(f"Selecting target month {target_month}")
-    await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
     while not (
         await page.locator(".mdp-calendar-monthyear").text_content(timeout=TIMEOUT_1S)
         == target_month
@@ -66,7 +64,25 @@ async def _select_date(
     await page.get_by_role("button", name="OK").click(timeout=TIMEOUT_1S)
 
 
+async def _go_to_reservations(page: Page):
+    LOGGER.info("Navigating to reservations page.")
+    await page.get_by_role("button", name="..//assets/img/reservations.").click(
+        timeout=TIMEOUT_5S
+    )
+
+
 async def _login(page: Page, email: str, pwd: str) -> bool:
+    """
+    Attempt to login from the Dashboard page.
+
+    Args:
+        page (Page): the current page.
+        email (str): the login email.
+        pwd (str): the login password.
+
+    Returns:
+        bool: True if login was successfull. False if already logged in.
+    """
     try:
         await page.get_by_role("button", name="Display login dialog").wait_for(
             state="visible", timeout=TIMEOUT_5S
@@ -86,11 +102,17 @@ async def _login(page: Page, email: str, pwd: str) -> bool:
     return True
 
 
-async def _save_state(context: BrowserContext, save_dir: Path):
+async def _save_state(context: BrowserContext, page: Page, save_dir: Path):
     # Save the storage state to a JSON file
     storage_state_path = save_dir / STORAGE_STATE_FILE
     LOGGER.info(f"Saving storage state to {storage_state_path}")
     await context.storage_state(path=storage_state_path)
+
+    session_storage_path = save_dir / SESSION_STORAGE_FILE
+    LOGGER.info(f"Saving session storage to {session_storage_path}")
+    session_storage = await page.evaluate("() => JSON.stringify(sessionStorage)")
+    with open(session_storage_path, "w") as f:
+        f.write(session_storage)
 
 
 async def _get_context(browser: Browser, save_dir: Path) -> BrowserContext:
@@ -108,6 +130,18 @@ async def _get_context(browser: Browser, save_dir: Path) -> BrowserContext:
     if storage_state_path.exists():
         LOGGER.info(f"Loading storage state from {storage_state_path}")
         context = await browser.new_context(storage_state=storage_state_path)
+
+        session_storage_path = save_dir / SESSION_STORAGE_FILE
+        if session_storage_path.exists():
+            LOGGER.info(f"Loading session storage from {session_storage_path}")
+            with open(session_storage_path, "r") as f:
+                session_storage = f.read()
+            await context.add_init_script("""(storage => {
+const entries = JSON.parse(storage)
+for (const [key, value] of Object.entries(entries)) {
+    window.sessionStorage.setItem(key, value)
+}
+})('""" + session_storage + "')")
     else:
         LOGGER.info(
             f"No storage state found at {storage_state_path}. Creating new context."
@@ -135,14 +169,16 @@ async def book_agora(
         browser = await p.chromium.launch(headless=headless)
         context = await _get_context(browser, save_dir)
         page = await context.new_page()
+
         LOGGER.info(f"Visiting {home_page}")
         await page.goto(home_page, wait_until="networkidle")
         try:
             # Login if required and save state
             logged_in = await _login(page, email, pwd)
             if logged_in:
-                await _save_state(context, save_dir)
+                await _save_state(context, page, save_dir)
 
+            await _go_to_reservations(page)
             await _select_date(page, date)
         except Exception as e:
             LOGGER.error(
