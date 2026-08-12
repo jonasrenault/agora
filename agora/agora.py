@@ -1,9 +1,11 @@
 import locale
 import logging
 from datetime import date, datetime
+from enum import Enum
 from pathlib import Path
 
 from patchright.async_api import Browser, BrowserContext, Page, async_playwright
+from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
 from agora.config.settings import settings
@@ -11,11 +13,18 @@ from agora.config.settings import settings
 LOGGER = logging.getLogger(__name__)
 
 TIMEOUT_1S = 1000
+TIMEOUT_2S = 2000
 TIMEOUT_3S = 3000
 TIMEOUT_5S = 5000
 
 STORAGE_STATE_FILE = "storage_state.json"
 SESSION_STORAGE_FILE = "session.json"
+
+
+class SlotColor(str, Enum):
+    red = "red"
+    green = "green"
+    yellow = "yellow"
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -37,6 +46,70 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
     if show:
         screenshot = Image.open(screen)
         screenshot.show()
+
+
+async def _reserve_slot(page: Page, date: date) -> bool:
+    # Count header dates and find the index of the target date
+    target_date = date.strftime("%Y-%m-%d")
+    headers = await page.locator("th.fc-day-header").all()
+    header_dates = [await header.get_attribute("data-date") for header in headers]
+    LOGGER.info(f"Found {len(header_dates)} header dates: {header_dates}")
+    slot_index = header_dates.index(target_date)
+    LOGGER.info(f"Target date index: {slot_index}")
+
+    # Find the target slot and check its color
+    slots = await page.locator("a.fc-event").all()
+    slot = slots[slot_index]
+    bg_color = await slot.evaluate("el => window.getComputedStyle(el).backgroundColor")
+    slot_color = _get_slot_color(bg_color)
+    LOGGER.info(
+        f"Found {len(slots)} slots, target slot is {slot_color.value} ({bg_color})"
+    )
+
+    # Click the slot and check for alert popups
+    await slot.click(timeout=TIMEOUT_5S)
+
+    try:
+        # An alert already exists.
+        await page.get_by_text("Une alerte a déjà été créée").wait_for(
+            state="visible", timeout=TIMEOUT_2S
+        )
+        LOGGER.warning("Target slot is red and an alert has already been created.")
+        return False
+    except (PlaywrightTimeoutError, TimeoutError):
+        pass
+
+    try:
+        # Create a new alert.
+        await page.get_by_text("Créer une alerte", exact=True).click(timeout=TIMEOUT_2S)
+        LOGGER.warning("Target slot is red. A new alert has been created.")
+        return False
+    except (PlaywrightTimeoutError, TimeoutError):
+        pass
+
+    # Click on submit button
+    LOGGER.info("Submitting slot reservation.")
+    await page.get_by_role("button", name="Submit").click(timeout=TIMEOUT_1S)
+
+    try:
+        await page.get_by_role("heading", name="Hmm... c'est embarrassant.").wait_for(
+            state="visible", timeout=TIMEOUT_2S
+        )
+        LOGGER.warning("Something went wrong, no reservations were submitted.")
+        return False
+    except (PlaywrightTimeoutError, TimeoutError):
+        LOGGER.info("Reservation successful.")
+        return True
+
+
+def _get_slot_color(bg_color: str) -> SlotColor:
+    red, green, blue = [int(x) for x in bg_color[4:-1].split(",")]
+    if red > 200 and green < 200 and blue < 200:
+        return SlotColor.red
+    elif red > 200 and green > 200 and blue < 200:
+        return SlotColor.yellow
+
+    return SlotColor.green
 
 
 async def _select_date(
@@ -62,6 +135,8 @@ async def _select_date(
 
     LOGGER.info("Validating date selection")
     await page.get_by_role("button", name="OK").click(timeout=TIMEOUT_1S)
+
+    await page.wait_for_timeout(TIMEOUT_2S)  # Wait for the calendar to update
 
 
 async def _go_to_reservations(page: Page):
@@ -154,7 +229,7 @@ async def book_agora(
     home_page: str = settings.AGORA_HOME_PAGE,
     email: str = settings.AGORA_EMAIL,
     pwd: str = settings.AGORA_PASSWORD,
-    date: date = date(2026, 10, 21),
+    date: date = date(2026, 10, 22),
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
     locale_code: str = "fr_FR",
@@ -180,6 +255,7 @@ async def book_agora(
 
             await _go_to_reservations(page)
             await _select_date(page, date)
+            await _reserve_slot(page, date)
         except Exception as e:
             LOGGER.error(
                 f"An exception occured while visiting {home_page}", exc_info=True
