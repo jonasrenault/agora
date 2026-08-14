@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,5 +17,13 @@ class Settings(BaseSettings):
     # User password for logging into Agora Plus
     AGORA_PASSWORD: str = ""
 
+    API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str
+    FASTAPI_ENV: Literal["development"] | None = None
+    # 60 minutes * 24 hours * 8 days = 8 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    PROJECT_NAME: str
+    ADMIN_PASSWORD: str
 
-settings = Settings()
+
+settings = Settings()  # type: ignore

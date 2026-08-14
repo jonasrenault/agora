@@ -9,10 +9,13 @@ description = "Réservation automatique de créneaux sur Agora Plus"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi[standard]>=0.141.1",
     "patchright>=1.61.2",
     "pillow>=12.3.0",
     "playwright>=1.62.0",
+    "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.14.2",
+    "pyjwt>=2.13.0",
     "requests>=2.34.2",
     "tqdm>=4.70.0",
     "typer>=0.27.1",
@@ -76,3 +79,6 @@ filterwarnings = [
     "ignore::UserWarning",
     'ignore::DeprecationWarning',
 ]
+
+[tool.fastapi]
+entrypoint = "agora.api.main:app"
