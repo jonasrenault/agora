@@ -1,4 +1,8 @@
+from datetime import date
+
 from pydantic import BaseModel, EmailStr
+
+from agora.agora import SlotColor
 
 
 class Token(BaseModel):
@@ -20,3 +24,8 @@ class User(BaseModel):
 
 class UserInDB(User):
     hashed_password: str
+
+
+class Slot(BaseModel):
+    date: date
+    color: SlotColor | None = None

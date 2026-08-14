@@ -48,7 +48,7 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
         screenshot.show()
 
 
-async def _reserve_slot(page: Page, date: date) -> bool:
+async def _reserve_slot(page: Page, date: date) -> SlotColor:
     # Count header dates and find the index of the target date
     target_date = date.strftime("%Y-%m-%d")
     headers = await page.locator("th.fc-day-header").all()
@@ -75,7 +75,7 @@ async def _reserve_slot(page: Page, date: date) -> bool:
             state="visible", timeout=TIMEOUT_2S
         )
         LOGGER.warning("Target slot is red and an alert has already been created.")
-        return False
+        return slot_color
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
@@ -83,7 +83,7 @@ async def _reserve_slot(page: Page, date: date) -> bool:
         # Create a new alert.
         await page.get_by_text("Créer une alerte", exact=True).click(timeout=TIMEOUT_2S)
         LOGGER.warning("Target slot is red. A new alert has been created.")
-        return False
+        return slot_color
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
@@ -96,10 +96,10 @@ async def _reserve_slot(page: Page, date: date) -> bool:
             state="visible", timeout=TIMEOUT_2S
         )
         LOGGER.warning("Something went wrong, no reservations were submitted.")
-        return False
+        return slot_color
     except (PlaywrightTimeoutError, TimeoutError):
         LOGGER.info("Reservation successful.")
-        return True
+        return slot_color
 
 
 def _get_slot_color(bg_color: str) -> SlotColor:
@@ -131,7 +131,9 @@ async def _select_date(
         await page.get_by_role("button", name="next month").click(timeout=TIMEOUT_1S)
 
     LOGGER.info(f"Selecting target day {date.day}")
-    await page.get_by_text(str(date.day), exact=True).click(timeout=TIMEOUT_5S)
+    await page.locator(".mdp-calendar-days").get_by_text(str(date.day), exact=True).click(
+        timeout=TIMEOUT_5S
+    )
 
     LOGGER.info("Validating date selection")
     await page.get_by_role("button", name="OK").click(timeout=TIMEOUT_1S)
@@ -233,7 +235,7 @@ async def book_agora(
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
     locale_code: str = "fr_FR",
-) -> None:
+) -> SlotColor | None:
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -255,11 +257,13 @@ async def book_agora(
 
             await _go_to_reservations(page)
             await _select_date(page, date)
-            await _reserve_slot(page, date)
+            color = await _reserve_slot(page, date)
         except Exception as e:
             LOGGER.error(
                 f"An exception occured while visiting {home_page}", exc_info=True
             )
             await _log_page(page, save_dir)
             raise e
+
         await _log_page(page, save_dir)
+        return color
