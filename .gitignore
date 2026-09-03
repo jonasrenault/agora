@@ -219,6 +219,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+.vscode/
 .DS_Store
 
 # runs dir

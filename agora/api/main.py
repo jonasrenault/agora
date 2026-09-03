@@ -1,7 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
 
 from agora.api.routes.routes import api_router
 from agora.config.settings import settings
@@ -19,6 +21,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
+# we need this middleware to save temporary code & state in session
+# for OAuth2 flow
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="agora_session",
+    max_age=14400,  # Session expiry in seconds (e.g., 4 hours)
+    same_site="lax",  # Session needs to persist between callbacks to google servers
+    https_only=settings.FASTAPI_ENV != "development",  # Recommended for production
+)
+
 
 @app.get("/")
 async def read_root():
@@ -31,3 +44,6 @@ async def health_check() -> bool:
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

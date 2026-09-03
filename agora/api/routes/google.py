@@ -1,0 +1,202 @@
+import json
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient import errors as google_api_errors
+from googleapiclient.discovery import build
+
+from agora.api.deps import CurrentSuperUser
+from agora.config.settings import settings
+
+router = APIRouter(prefix="/google", tags=["google"])
+
+SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+API_SERVICE_NAME = "gmail"
+API_VERSION = "v1"
+
+CREDENTIALS_PATH = settings.CREDENTIALS_DIR / settings.CREDENTIALS_FILE_NAME
+TOKEN_PATH = settings.CREDENTIALS_DIR / settings.TOKEN_FILE_NAME
+
+# https://developers.google.com/identity/protocols/oauth2/web-server#example
+# TODO: ajouter les routes clear et revoke depuis l'exemple
+# https://developers.google.com/workspace/gmail/api/auth/web-server
+
+
+@router.get("/authorize")
+# async def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
+async def authorize(*, request: Request) -> RedirectResponse:
+    """
+    Route to authorize a super user to access their Gmail account via OAuth 2.0.
+    This requests consent from the user by interacting with Google's OAuth 2.0 server.
+
+    Args:
+        admin (CurrentSuperUser): The super user dependency, to ensure that only
+            authorized super users can access this route.
+        request (Request): The HTTP request object.
+    """
+    # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
+    flow = Flow.from_client_secrets_file(
+        CREDENTIALS_PATH, scopes=SCOPES, autogenerate_code_verifier=True
+    )
+
+    # The URI created here must exactly match one of the authorized redirect URIs
+    # for the OAuth 2.0 client, which you configured in the API Console. If this
+    # value doesn't match an authorized URI, you will get a 'redirect_uri_mismatch'
+    # error.
+    flow.redirect_uri = request.url_for("oauth2callback")
+
+    authorization_url, state = flow.authorization_url(
+        # Enable offline access so that you can refresh an access token without
+        # re-prompting the user for permission. Recommended for web server apps.
+        access_type="offline",
+        # Enable incremental authorization. Recommended as a best practice.
+        include_granted_scopes="true",
+    )
+
+    # Store the state so the callback can verify the auth server response.
+    request.session["state"] = state
+    request.session["code_verifier"] = flow.code_verifier
+
+    return RedirectResponse(url=authorization_url)
+
+
+@router.get("/oauth2callback")
+def oauth2callback(request: Request) -> RedirectResponse:
+    """
+    The callback endpoint for Google's OAuth 2.0 server response. The OAuth 2.0 server
+    responds to the application by sending a request to this URL. If the user approves
+    the access request, then the response contains an authorization code. If the user
+    does not approve the request, the response contains an error message.
+
+    The authorization code or error message that is returned to the web server appears
+    on the query string, as shown in the following examples:
+
+    An error response:
+
+        https://agora.fastapicloud.com/api/v1/google/oauth2callback?error=access_denied
+
+    An authorization code response:
+
+        https://agora.fastapicloud.com/api/v1/google/oauth2callback?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
+    """
+    # Specify the state when creating the flow in the callback so that it can
+    # verified in the authorization server response.
+    state = request.session.get("state")
+
+    flow = Flow.from_client_secrets_file(
+        CREDENTIALS_PATH,
+        scopes=SCOPES,
+        state=state,
+        code_verifier=request.session.get("code_verifier"),
+        autogenerate_code_verifier=False,
+    )
+    flow.redirect_uri = request.url_for("oauth2callback")
+
+    # Use the authorization server's response to fetch the OAuth 2.0 tokens.
+    authorization_response = str(request.url)
+    if settings.FASTAPI_ENV == "development":
+        authorization_response = authorization_response.replace("http://", "https://")
+    flow.fetch_token(authorization_response=authorization_response)
+
+    # Store credentials in the session.
+    # ACTION ITEM: In a production app, you likely want to save these
+    #              credentials in a persistent database instead.
+    credentials = flow.credentials
+    check_granted_scopes(credentials)
+
+    # Store credentials on disk.
+    with open(TOKEN_PATH, "w") as token:
+        token.write(credentials.to_json())
+
+    return RedirectResponse(url=request.url_for("gmail_list_messages"))
+
+
+def check_granted_scopes(credentials):
+    for scope in SCOPES:
+        if scope not in credentials.granted_scopes:
+            raise HTTPException(
+                status_code=400, detail=f"Missing required scope: {scope}"
+            )
+
+
+def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:
+    """
+    Retrieved stored credentials for the authorized super user.
+
+    Args:
+        admin (CurrentSuperUser): The authorized super user.
+        request (Request): The HTTP request object.
+
+    Raises:
+        HTTPException: if no credentials stored on disk.
+
+    Returns:
+        Credentials: the super user's credentials object.
+    """
+    # Load client secrets from the server-side file.
+    with open(CREDENTIALS_PATH, "r") as f:
+        client_config = json.load(f)["web"]
+
+    if not TOKEN_PATH.exists():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Oops! Invalid or expired credentials. "
+                f"Go to {request.url_for('authorize')} to authorize access."
+            ),
+        )
+
+    # Load user-specific credentials from browser session storage.
+    with open(TOKEN_PATH, "r") as f:
+        session_credentials = json.load(f)
+
+    # Reconstruct the credentials object.
+    credentials = Credentials(
+        refresh_token=session_credentials.get("refresh_token"),
+        scopes=session_credentials.get("granted_scopes"),
+        token=session_credentials.get("token"),
+        client_id=client_config.get("client_id"),
+        client_secret=client_config.get("client_secret"),
+        token_uri=client_config.get("token_uri"),
+    )
+
+    return credentials
+
+
+SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
+
+
+@router.get("/list")
+def gmail_list_messages(
+    credentials: SuperUserCredentials, request: Request, query: str = ""
+):
+    try:
+        service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+        results = (
+            service.users()
+            .messages()
+            .list(userId="me", labelIds=["INBOX"], q=query)
+            .execute()
+        )
+        messages = []
+        messages.extend(results.get("messages", []))
+
+        while "nextPageToken" in results:
+            page_token = results["nextPageToken"]
+            results = (
+                service.users()
+                .messages()
+                .list(userId="me", labelIds=["INBOX"], q=query, pageToken=page_token)
+                .execute()
+            )
+            messages.extend(results.get("messages", []))
+
+        return messages
+    except google_api_errors.HttpError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured with google's API: {e}",
+        )

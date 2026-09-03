@@ -5,7 +5,7 @@ import typer
 from rich.logging import RichHandler
 
 from agora.agora import book_agora
-from agora.api.google.gmail import read_emails
+from agora.google.gmail import read_emails
 
 FORMAT = "%(message)s"
 logging.basicConfig(

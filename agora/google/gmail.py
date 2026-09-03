@@ -11,6 +11,8 @@ LOGGER = logging.getLogger(__name__)
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+API_SERVICE_NAME = "gmail"
+API_VERSION = "v1"
 
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE = "token.json"
