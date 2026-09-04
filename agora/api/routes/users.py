@@ -17,7 +17,7 @@ async def create_user(user: UserCreate, is_superuser: bool = False):
     return db_user
 
 
-@router.get("/users/{pk}", response_model=UserResponse)
+@router.get("/{pk}", response_model=UserResponse)
 async def get_user(pk: str):
     """Get user by primary key"""
     try:
@@ -27,7 +27,7 @@ async def get_user(pk: str):
         raise HTTPException(404, f"User with pk {pk} not found.")
 
 
-@router.get("/users", response_model=UsersResponse)
+@router.get("/", response_model=UsersResponse)
 async def list_users(
     username: str | None = None,
     email: str | None = None,
@@ -63,7 +63,7 @@ async def list_users(
     return UsersResponse(data=users_public, count=count, page=page)  # type: ignore
 
 
-@router.delete("/users/{pk}")
+@router.delete("/{pk}")
 async def delete_user(pk: str):
     """Delete user by pk"""
     try:

@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from agora.api import security
@@ -15,7 +15,7 @@ router = APIRouter(tags=["login"])
 
 @router.post("/login/access-token")
 async def login_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], response: Response
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
@@ -27,11 +27,18 @@ async def login_access_token(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
+    token = Token(
         access_token=security.create_access_token(
             data={"sub": user.email}, expires_delta=access_token_expires
         )
     )
+    response.set_cookie(
+        key="access_token",
+        value=f"{token.token_type.capitalize()} {token.access_token}",
+        httponly=True,
+        max_age=int(access_token_expires.total_seconds()),
+    )
+    return token
 
 
 @router.post("/login/test-token", response_model=UserResponse)

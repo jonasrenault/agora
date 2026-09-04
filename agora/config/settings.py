@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+ROOT_DIR = Path(__file__).parent.parent.parent
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -35,11 +37,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str
+    TEMPLATES_DIR: Path = ROOT_DIR / "templates"
 
     ################
     # GOOGLE API SETTINGS
     ################
-    CREDENTIALS_DIR: Path = Path(__file__).parent.parent.parent / ".credentials"
+    CREDENTIALS_DIR: Path = ROOT_DIR / ".credentials"
     CREDENTIALS_FILE_NAME: str = "credentials.json"
     TOKEN_FILE_NAME: str = "token.json"
 

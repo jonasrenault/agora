@@ -1,8 +1,9 @@
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 
@@ -11,7 +12,27 @@ from agora.api.crud import get_user_by_email
 from agora.api.models import TokenPayload, User
 from agora.config.settings import settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
+
+class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
+
+    async def __call__(self, request: Request) -> str | None:
+        # 1. Try Header first (for Swagger UI)
+        authorization = request.headers.get("Authorization")
+        if not authorization:
+            authorization = request.cookies.get("access_token")
+
+        scheme, param = get_authorization_scheme_param(authorization)
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise self.make_not_authenticated_error()
+            else:
+                return None
+        return param
+
+
+oauth2_scheme = OAuth2PasswordBearerWithCookie(
+    tokenUrl=f"{settings.API_V1_STR}/login/access-token"
+)
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 
 

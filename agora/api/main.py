@@ -5,6 +5,7 @@ import redis.asyncio as redis
 import uvicorn
 from aredis_om import SchemaMigrator
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -49,9 +50,10 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def read_root():
-    return {"Hello": "World"}
+    with open(settings.TEMPLATES_DIR / "index.html") as f:
+        return HTMLResponse(content=f.read())
 
 
 @app.get("/health-check/")
