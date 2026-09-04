@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Annotated
 
 from aredis_om import Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, EmailStr
@@ -18,12 +17,12 @@ class TokenPayload(BaseModel):
     sub: str | None = None
 
 
-class User(JsonModel):
+class User(JsonModel, index=True):  # type: ignore
     email: EmailStr = Field(index=True)
-    username: Annotated[str | None, Field(index=True)] = None
-    is_active: Annotated[bool, Field(index=True)] = True
-    is_superuser: Annotated[bool, Field(index=True)] = False
-    hashed_password: str
+    username: str | None = Field(default=None, index=True)
+    is_active: bool = Field(default=True, index=True)
+    is_superuser: bool = Field(default=False, index=True)
+    hashed_password: str = Field(index=False)
     created_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
 
     class Meta:
@@ -50,6 +49,12 @@ class UserResponse(BaseModel):
     is_active: bool
     is_superuser: bool
     created_at: datetime
+
+
+class UsersResponse(BaseModel):
+    data: list[UserResponse]
+    count: int
+    page: int
 
 
 class Slot(BaseModel):

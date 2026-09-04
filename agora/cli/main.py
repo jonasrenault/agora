@@ -5,7 +5,6 @@ import typer
 from rich.logging import RichHandler
 
 from agora.agora import book_agora
-from agora.google.gmail import read_emails
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -20,11 +19,6 @@ def book():
     Book a slot.
     """
     asyncio.run(book_agora())
-
-
-@app.command()
-def gmail():
-    read_emails()
 
 
 if __name__ == "__main__":
