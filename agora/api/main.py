@@ -1,21 +1,37 @@
 import logging
 from contextlib import asynccontextmanager
 
+import redis.asyncio as redis
 import uvicorn
+from aredis_om import SchemaMigrator
 from fastapi import FastAPI
+from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
 
+from agora.api.crud import init_db
 from agora.api.routes.routes import api_router
 from agora.config.settings import settings
 from agora.utils import driver_install
 
-logging.basicConfig(level=logging.INFO)
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level=logging.INFO, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(markup=True)]
+)
+LOGGER = logging.getLogger(__name__)
+
+
+async def get_redis_client():
+    return redis.from_url(settings.REDIS_OM_URL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Make sure chromium driver is installed
     driver_install("chromium")
+    # Startup: Run migrations
+    await SchemaMigrator(await get_redis_client()).run()
+    await init_db()
+    LOGGER.info("[green]✓[/green] Migrations complete.")
     yield
 
 
@@ -46,4 +62,4 @@ async def health_check() -> bool:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app="agora.api.main:app", host="127.0.0.1", port=8000, reload=True)

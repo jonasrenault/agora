@@ -5,23 +5,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from agora.api import security
-from agora.api.deps import CurrentUser, DBDep
-from agora.api.models import Token, User
-from agora.api.security import authenticate_user
+from agora.api.crud import authenticate_user
+from agora.api.deps import CurrentUser
+from agora.api.models import Token, UserResponse
 from agora.config.settings import settings
 
 router = APIRouter(tags=["login"])
 
 
 @router.post("/login/access-token")
-def login_access_token(
-    db: DBDep,
+async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
@@ -35,7 +34,7 @@ def login_access_token(
     )
 
 
-@router.post("/login/test-token", response_model=User)
+@router.post("/login/test-token", response_model=UserResponse)
 def test_token(current_user: CurrentUser) -> Any:
     """
     Test access token

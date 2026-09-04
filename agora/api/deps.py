@@ -7,16 +7,15 @@ from jwt import InvalidTokenError
 from pydantic import ValidationError
 
 from agora.api import security
-from agora.api.db import DB, get_db, get_user
+from agora.api.crud import get_user_by_email
 from agora.api.models import TokenPayload, User
 from agora.config.settings import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
-DBDep = Annotated[DB, Depends(get_db)]
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 
 
-async def get_current_user(db: DBDep, token: TokenDep):
+async def get_current_user(token: TokenDep):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
         token_data = TokenPayload(**payload)
@@ -31,7 +30,7 @@ async def get_current_user(db: DBDep, token: TokenDep):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-    user = get_user(db, email=token_data.sub)
+    user = await get_user_by_email(email=token_data.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
