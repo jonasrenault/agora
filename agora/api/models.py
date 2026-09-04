@@ -32,7 +32,7 @@ class User(JsonModel, index=True):  # type: ignore
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
         model_key_prefix = "user"
-        database = get_redis_connection(url=settings.REDIS_OM_URL)
+        database = get_redis_connection(url=settings.REDIS_URL)
 
 
 # ============================================================

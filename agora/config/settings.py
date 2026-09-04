@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ################
     # REDIS SETTINGS
     ################
-    REDIS_OM_URL: str
+    REDIS_URL: str
     REDIS_PREFIX: str = "agora"
 
     ################

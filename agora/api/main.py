@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 async def get_redis_client():
-    return redis.from_url(settings.REDIS_OM_URL)
+    return redis.from_url(settings.REDIS_URL)
 
 
 @asynccontextmanager
