@@ -25,6 +25,10 @@ class User(JsonModel, index=True):  # type: ignore
     hashed_password: str = Field(index=False)
     created_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
 
+    token: str | None = Field(default=None, index=False)
+    refresh_token: str | None = Field(default=None, index=False)
+    granted_scopes: list[str] | None = Field(default=None, index=False)
+
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
         model_key_prefix = "user"
@@ -40,6 +44,15 @@ class UserCreate(BaseModel):
     email: str
     username: str | None = None
     password: str
+
+
+# Properties to receive via API on update, all are optional
+class UserUpdate(BaseModel):
+    email: EmailStr | None = None
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+    username: str | None = None
+    password: str | None = None
 
 
 class UserResponse(BaseModel):

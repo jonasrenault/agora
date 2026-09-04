@@ -2,12 +2,16 @@ from datetime import datetime
 
 from aredis_om import NotFoundError
 
-from agora.api.models import User, UserCreate
+from agora.api.models import User, UserCreate, UserUpdate
 from agora.api.security import get_password_hash, verify_password
 from agora.config.settings import settings
 
 
 async def create_user(*, user_create: UserCreate, is_superuser: bool = False) -> User:
+    existing_user = await get_user_by_email(email=user_create.email)
+    if existing_user:
+        raise ValueError(f"User with email {user_create.email} already exists.")
+
     db_obj = User.model_validate(
         {
             **user_create.model_dump(),
@@ -19,6 +23,29 @@ async def create_user(*, user_create: UserCreate, is_superuser: bool = False) ->
 
     await db_obj.save()
     return db_obj
+
+
+async def update_user(*, db_user: User, user_in: UserUpdate) -> User:
+    if user_in.email is not None:
+        existing_user = await get_user_by_email(email=user_in.email)
+        if existing_user:
+            raise ValueError(f"User with email {user_in.email} already exists.")
+
+    user_data = user_in.model_dump(exclude_unset=True)
+    try:
+        if user_data["password"]:
+            user_data["hashed_password"] = get_password_hash(user_data["password"])
+            del user_data["password"]
+    except KeyError:
+        pass
+
+    extra_data = {}
+    if "password" in user_data:
+        password = user_data["password"]
+        hashed_password = get_password_hash(password)
+        extra_data["hashed_password"] = hashed_password
+    await db_user.update(**user_data)
+    return db_user
 
 
 async def get_user_by_email(*, email: str) -> User | None:

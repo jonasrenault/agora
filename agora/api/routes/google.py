@@ -26,8 +26,7 @@ TOKEN_PATH = settings.CREDENTIALS_DIR / settings.TOKEN_FILE_NAME
 
 
 @router.get("/authorize")
-# async def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
-async def authorize(*, request: Request) -> RedirectResponse:
+def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
     """
     Route to authorize a super user to access their Gmail account via OAuth 2.0.
     This requests consent from the user by interacting with Google's OAuth 2.0 server.
@@ -64,7 +63,7 @@ async def authorize(*, request: Request) -> RedirectResponse:
 
 
 @router.get("/oauth2callback")
-def oauth2callback(request: Request) -> RedirectResponse:
+async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectResponse:
     """
     The callback endpoint for Google's OAuth 2.0 server response. The OAuth 2.0 server
     responds to the application by sending a request to this URL. If the user approves
@@ -101,25 +100,28 @@ def oauth2callback(request: Request) -> RedirectResponse:
         authorization_response = authorization_response.replace("http://", "https://")
     flow.fetch_token(authorization_response=authorization_response)
 
-    # Store credentials in the session.
-    # ACTION ITEM: In a production app, you likely want to save these
-    #              credentials in a persistent database instead.
+    # Store credentials in DB
     credentials = flow.credentials
     check_granted_scopes(credentials)
-
-    # Store credentials on disk.
-    with open(TOKEN_PATH, "w") as token:
-        token.write(credentials.to_json())
+    await admin.update(**credentials_to_dict(credentials))
 
     return RedirectResponse(url=request.url_for("gmail_list_messages"))
 
 
-def check_granted_scopes(credentials):
+def check_granted_scopes(credentials) -> None:
     for scope in SCOPES:
         if scope not in credentials.granted_scopes:
             raise HTTPException(
                 status_code=400, detail=f"Missing required scope: {scope}"
             )
+
+
+def credentials_to_dict(credentials) -> dict[str, str | list[str]]:
+    return {
+        "token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "granted_scopes": credentials.granted_scopes,
+    }
 
 
 def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:
@@ -140,7 +142,9 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
     with open(CREDENTIALS_PATH, "r") as f:
         client_config = json.load(f)["web"]
 
-    if not TOKEN_PATH.exists():
+    if (
+        admin.token is None and admin.refresh_token is None
+    ) or admin.granted_scopes is None:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -149,15 +153,11 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
             ),
         )
 
-    # Load user-specific credentials from browser session storage.
-    with open(TOKEN_PATH, "r") as f:
-        session_credentials = json.load(f)
-
     # Reconstruct the credentials object.
     credentials = Credentials(
-        refresh_token=session_credentials.get("refresh_token"),
-        scopes=session_credentials.get("granted_scopes"),
-        token=session_credentials.get("token"),
+        refresh_token=admin.refresh_token,
+        scopes=admin.granted_scopes,
+        token=admin.token,
         client_id=client_config.get("client_id"),
         client_secret=client_config.get("client_secret"),
         token_uri=client_config.get("token_uri"),
