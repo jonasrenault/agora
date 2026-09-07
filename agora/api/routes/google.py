@@ -1,6 +1,7 @@
 import json
 from typing import Annotated
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
@@ -167,6 +168,26 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
 
 
 SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
+
+
+@router.get("/clear")
+async def clear_credentials(admin: CurrentSuperUser) -> RedirectResponse:
+    admin.granted_scopes = None
+    admin.token = None
+    admin.refresh_token = None
+    await admin.update()
+    return RedirectResponse(url="/")
+
+
+@router.get("/revoke")
+async def revoke(credentials: SuperUserCredentials, request: Request) -> RedirectResponse:
+    r = requests.post(
+        "https://oauth2.googleapis.com/revoke",
+        params={"token": credentials.token},
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    r.raise_for_status()
+    return RedirectResponse(url=request.url_for("clear_credentials"))
 
 
 @router.get("/list")

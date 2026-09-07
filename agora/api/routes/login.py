@@ -60,8 +60,18 @@ async def login_access_token(
 
 
 @router.post("/login/test-token", response_model=UserResponse)
-def test_token(current_user: CurrentUser) -> Any:
+def test_token(current_user: CurrentUser, response: Response) -> Any:
     """
     Test access token
     """
     return current_user
+
+
+@router.get("/logout", response_model=UserResponse)
+def logout(current_user: CurrentUser) -> RedirectResponse:
+    """
+    Logout user by clearing the access token cookie.
+    """
+    response = RedirectResponse(url="/")
+    response.delete_cookie(key="access_token")
+    return response
