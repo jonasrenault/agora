@@ -44,7 +44,6 @@ async def login_access_token(
             httponly=True,
             max_age=int(access_token_expires.total_seconds()),
             secure=settings.FASTAPI_ENV != "development",  # Recommended for production
-            samesite="strict",
         )
         return redirect
 
@@ -54,7 +53,6 @@ async def login_access_token(
         httponly=True,
         max_age=int(access_token_expires.total_seconds()),
         secure=settings.FASTAPI_ENV != "development",  # Recommended for production
-        samesite="strict",
     )
     return token
 
