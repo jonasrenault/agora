@@ -25,6 +25,16 @@ class SlotColor(str, Enum):
     red = "red"
     green = "green"
     yellow = "yellow"
+    white = "white"
+
+
+class AgoraResult(str, Enum):
+    success = "success"  # slot was successfully reserved
+    alert = "alert"  # slot was full, an alert was created instead
+    already_booked = "already_booked"  # slot was already booked
+    unavailable = "unavailable"  # slot was unavailable and an alert already existed
+    not_found = "not_found"  # slot not found (e.g. weekend date)
+    too_late = "too_late"  # too late to reserve slot
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -48,23 +58,35 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
         screenshot.show()
 
 
-async def _reserve_slot(page: Page, date: date) -> SlotColor:
+async def _get_slot_index(page: Page, date: date) -> int:
     # Count header dates and find the index of the target date
     target_date = date.strftime("%Y-%m-%d")
     headers = await page.locator("th.fc-day-header").all()
     header_dates = [await header.get_attribute("data-date") for header in headers]
-    LOGGER.info(f"Found {len(header_dates)} header dates: {header_dates}")
-    slot_index = header_dates.index(target_date)
-    LOGGER.info(f"Target date index: {slot_index}")
+    LOGGER.debug(f"Found {len(header_dates)} header dates: {header_dates}")
+    try:
+        return header_dates.index(target_date)
+    except ValueError:
+        return -1
+
+
+async def _reserve_slot(page: Page, date: date) -> AgoraResult:
+    slot_index = await _get_slot_index(page, date)
+    if slot_index < 0:
+        LOGGER.debug(f"Target date {date} is not available for reservation.")
+        return AgoraResult.not_found
 
     # Find the target slot and check its color
     slots = await page.locator("a.fc-event").all()
     slot = slots[slot_index]
     bg_color = await slot.evaluate("el => window.getComputedStyle(el).backgroundColor")
     slot_color = _get_slot_color(bg_color)
-    LOGGER.info(
-        f"Found {len(slots)} slots, target slot is {slot_color.value} ({bg_color})"
-    )
+    LOGGER.debug(f"Target slot is {slot_color.value} ({bg_color})")
+
+    # If target slot is green it's already booked don't click it
+    if slot_color is SlotColor.green:
+        LOGGER.debug("Target slot already booked, skipping reservation.")
+        return AgoraResult.already_booked
 
     # Click the slot and check for alert popups
     await slot.click(timeout=TIMEOUT_5S)
@@ -72,34 +94,58 @@ async def _reserve_slot(page: Page, date: date) -> SlotColor:
     try:
         # An alert already exists.
         await page.get_by_text("Une alerte a déjà été créée").wait_for(
-            state="visible", timeout=TIMEOUT_2S
+            state="visible", timeout=TIMEOUT_1S
         )
-        LOGGER.warning("Target slot is red and an alert has already been created.")
-        return slot_color
+        # Click on the alert to close it
+        await page.locator("div").filter(
+            has_text="Une alerte a déjà été créée"
+        ).first.click(timeout=TIMEOUT_1S)
+        LOGGER.debug("Target slot is red and an alert has already been created.")
+        return AgoraResult.unavailable
+    except (PlaywrightTimeoutError, TimeoutError):
+        pass
+
+    try:
+        await page.get_by_text("La reservation hors délai").wait_for(
+            state="visible", timeout=TIMEOUT_1S
+        )
+        await page.get_by_role("button", name="Event toolbar action").click()
+        LOGGER.debug("Cannot book slot less than 4 days before.")
+        return AgoraResult.too_late
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
     try:
         # Create a new alert.
         await page.get_by_text("Créer une alerte", exact=True).click(timeout=TIMEOUT_2S)
-        LOGGER.warning("Target slot is red. A new alert has been created.")
-        return slot_color
+        LOGGER.debug("Target slot is red. A new alert has been created.")
+        return AgoraResult.alert
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
+    LOGGER.info(f"Target slot {date} added to reservations.")
+    await page.wait_for_timeout(TIMEOUT_1S)  # Wait for the calendar to update
+    return AgoraResult.success
+
+
+async def _submit_reservations(page: Page) -> bool:
     # Click on submit button
-    LOGGER.info("Submitting slot reservation.")
+    LOGGER.info("Submitting slot reservations.")
     await page.get_by_role("button", name="Submit").click(timeout=TIMEOUT_1S)
 
+    # Check if we actually booked something
     try:
         await page.get_by_role("heading", name="Hmm... c'est embarrassant.").wait_for(
             state="visible", timeout=TIMEOUT_2S
         )
         LOGGER.warning("Something went wrong, no reservations were submitted.")
-        return slot_color
+        return False
     except (PlaywrightTimeoutError, TimeoutError):
-        LOGGER.info("Reservation successful.")
-        return slot_color
+        pass
+
+    await page.get_by_role("button", name="Close").click(timeout=TIMEOUT_5S)
+    LOGGER.info("Reservation successful.")
+    return True
 
 
 def _get_slot_color(bg_color: str) -> SlotColor:
@@ -108,6 +154,8 @@ def _get_slot_color(bg_color: str) -> SlotColor:
         return SlotColor.red
     elif red > 200 and green > 200 and blue < 200:
         return SlotColor.yellow
+    elif red > 200 and green > 200 and blue > 200:
+        return SlotColor.white
 
     return SlotColor.green
 
@@ -119,25 +167,30 @@ async def _select_date(
     if date < datetime.now().date():
         raise ValueError(f"Unable to select a date in the past ({date})")
 
+    # check if date is already on page
+    date_index = await _get_slot_index(page, date)
+    if date_index > -1:
+        LOGGER.info(f"Date {date} already visible on page.")
+        return
+
     LOGGER.info(f"Selecting date {date}")
     await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
 
     target_month = date.strftime("%B")  # e.g., "août"
-    LOGGER.info(f"Selecting target month {target_month}")
+    LOGGER.debug(f"Selecting target month {target_month}")
     while not (
         await page.locator(".mdp-calendar-monthyear").text_content(timeout=TIMEOUT_1S)
         == target_month
     ):
         await page.get_by_role("button", name="next month").click(timeout=TIMEOUT_1S)
 
-    LOGGER.info(f"Selecting target day {date.day}")
+    LOGGER.debug(f"Selecting target day {date.day}")
     await page.locator(".mdp-calendar-days").get_by_text(str(date.day), exact=True).click(
         timeout=TIMEOUT_5S
     )
 
-    LOGGER.info("Validating date selection")
+    LOGGER.debug("Validating date selection")
     await page.get_by_role("button", name="OK").click(timeout=TIMEOUT_1S)
-
     await page.wait_for_timeout(TIMEOUT_2S)  # Wait for the calendar to update
 
 
@@ -231,11 +284,16 @@ async def book_agora(
     home_page: str = settings.AGORA_HOME_PAGE,
     email: str = settings.AGORA_EMAIL,
     pwd: str = settings.AGORA_PASSWORD,
-    date: date = date(2026, 10, 22),
+    dates: list[date] = [
+        date(2026, 10, 22),
+        date(2026, 10, 24),
+        date(2026, 9, 22),
+        date(2026, 9, 9),
+    ],
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
     locale_code: str = "fr_FR",
-) -> SlotColor | None:
+) -> dict[date, AgoraResult]:
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -249,6 +307,7 @@ async def book_agora(
 
         LOGGER.info(f"Visiting {home_page}")
         await page.goto(home_page, wait_until="networkidle")
+        results: dict[date, AgoraResult] = {}
         try:
             # Login if required and save state
             logged_in = await _login(page, email, pwd)
@@ -256,8 +315,17 @@ async def book_agora(
                 await _save_state(context, page, save_dir)
 
             await _go_to_reservations(page)
-            await _select_date(page, date)
-            color = await _reserve_slot(page, date)
+
+            for slot_date in dates:
+                await _select_date(page, slot_date)
+                result = await _reserve_slot(page, slot_date)
+                results[slot_date] = result
+
+            LOGGER.info("\n".join(f"{d}: {r}" for d, r in results.items()))
+            if AgoraResult.success in results.values():
+                await _submit_reservations(page)
+            else:
+                LOGGER.info("[yellow]⚠ No slots booked, not submitting.[/yellow]")
         except Exception as e:
             LOGGER.error(
                 f"An exception occured while visiting {home_page}", exc_info=True
@@ -266,4 +334,4 @@ async def book_agora(
             raise e
 
         await _log_page(page, save_dir)
-        return color
+        return results
