@@ -8,9 +8,8 @@ router = APIRouter(prefix="/agora", tags=["agora"])
 
 
 @router.post("/agora")
-async def book_slot(*, current_user: CurrentUser, slot: Slot) -> Slot:
+async def book_slot(*, current_user: CurrentUser, slot: Slot):
     """
     Book a slot on agora.
     """
-    slot.color = await book_agora(date=slot.date)
-    return slot
+    await book_agora(dates=[slot.date])
