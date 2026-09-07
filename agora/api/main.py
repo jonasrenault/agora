@@ -2,12 +2,14 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
 
+from agora.api import templates
 from agora.api.crud import init_db
+from agora.api.deps import OptionalUser
 from agora.api.routes.routes import api_router
 from agora.config.settings import settings
 from agora.utils import driver_install
@@ -43,9 +45,15 @@ app.add_middleware(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
-    with open(settings.TEMPLATES_DIR / "index.html") as f:
-        return HTMLResponse(content=f.read())
+async def home_page(request: Request, optional_user: OptionalUser) -> HTMLResponse:
+    context = {}
+    if optional_user:
+        context["user"] = {
+            "username": optional_user.username,
+            "email": optional_user.email,
+            "is_linked": optional_user.granted_scopes is not None,
+        }
+    return templates.TemplateResponse(request=request, name="index.html", context=context)
 
 
 @app.get("/health-check/")

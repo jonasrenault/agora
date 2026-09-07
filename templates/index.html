@@ -5,83 +5,174 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <title>Agora - Login</title>
+    <title>Agora</title>
 </head>
 
 <body>
-    <main class="bg-gray-50 px-4 md:px-8 dark:bg-neutral-900">
-        <div class="min-h-screen flex flex-col items-center justify-center">
-            <div class="max-w-md w-full">
 
-                <div
-                    class="p-6 rounded-lg bg-white border border-slate-300 shadow-xs md:p-8 dark:bg-neutral-800 dark:border-neutral-700">
-                    <h1 class="text-slate-900 text-center text-3xl font-bold dark:text-slate-50">Sign in</h1>
-
-                    <form class="space-y-6 mt-10" method="POST" action="/api/v1/login/access-token">
-                        <div>
-                            <label for="username"
-                                class="mb-2 text-slate-900 font-medium text-sm inline-block dark:text-slate-50">Email</label>
-                            <input type="email" id="username" name="username" placeholder="john@agora.fr" required
-                                class="px-3 py-2.5 text-sm text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 dark:text-slate-50 dark:bg-neutral-700 dark:outline-neutral-600" />
-                        </div>
-                        <div>
-                            <label for="password"
-                                class="mb-2 text-slate-900 font-medium text-sm inline-block dark:text-slate-50">Password</label>
-                            <input type="password" id="password" name="password" placeholder="••••••••" required
-                                class="px-3 py-2.5 text-sm text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 dark:text-slate-50 dark:bg-neutral-700 dark:outline-neutral-600" />
-                        </div>
-
-                        <button type="submit"
-                            class="w-full py-2 px-3.5 text-sm rounded-md font-semibold cursor-pointer tracking-wide text-white border border-blue-600 bg-blue-600 hover:bg-blue-700 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                            Sign in</button>
-                    </form>
+    <main class="relative pt-[68px] h-screen">
+        <!-- navbar -->
+        <nav class="flex py-2 fixed top-0 w-full bg-white border-b border-slate-300 px-4 md:px-8 dark:border-neutral-700 dark:bg-neutral-900 min-h-[68px] z-20"
+            aria-label="header navigation">
+            <div class="flex flex-wrap items-center gap-4 w-full">
+                <div class="flex-1 flex">
+                    <a href="#"
+                        class="min-w-9 inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+                        <span class="font-bold text-xl">Agora</span>
+                    </a>
                 </div>
 
-                <section class="mt-6 px-4 md:px-8">
-                    <div class="max-w-3xl mx-auto text-center">
-                        <div>
-                            <h2 class="text-3xl font-bold text-slate-900 mb-6 md:text-4xl dark:text-slate-50">Try </h2>
-                        </div>
-
-                        <div class="flex justify-center gap-4 flex-wrap mt-8">
-                            <a href="/api/v1/google/authorize"
-                                class="inline-flex items-center justify-center gap-2.5 py-2 px-3.5 text-sm rounded-md font-semibold text-slate-900 border border-slate-300 bg-white hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-slate-50 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] overflow-visible"
-                                    viewBox="0 0 512 512" aria-hidden="true">
-                                    <path fill="#fbbd00"
-                                        d="M120 256c0-25.367 6.989-49.13 19.131-69.477v-86.308H52.823C18.568 144.703 0 198.922 0 256s18.568 111.297 52.823 155.785h86.308v-86.308C126.989 305.13 120 281.367 120 256z"
-                                        data-original="#fbbd00" />
-                                    <path fill="#0f9d58"
-                                        d="m256 392-60 60 60 60c57.079 0 111.297-18.568 155.785-52.823v-86.216h-86.216C305.044 385.147 281.181 392 256 392z"
-                                        data-original="#0f9d58" />
-                                    <path fill="#31aa52"
-                                        d="m139.131 325.477-86.308 86.308a260.085 260.085 0 0 0 22.158 25.235C123.333 485.371 187.62 512 256 512V392c-49.624 0-93.117-26.72-116.869-66.523z"
-                                        data-original="#31aa52" />
-                                    <path fill="#3c79e6"
-                                        d="M512 256a258.24 258.24 0 0 0-4.192-46.377l-2.251-12.299H256v120h121.452a135.385 135.385 0 0 1-51.884 55.638l86.216 86.216a260.085 260.085 0 0 0 25.235-22.158C485.371 388.667 512 324.38 512 256z"
-                                        data-original="#3c79e6" />
-                                    <path fill="#cf2d48"
-                                        d="m352.167 159.833 10.606 10.606 84.853-84.852-10.606-10.606C388.668 26.629 324.381 0 256 0l-60 60 60 60c36.326 0 70.479 14.146 96.167 39.833z"
-                                        data-original="#cf2d48" />
-                                    <path fill="#eb4132"
-                                        d="M256 120V0C187.62 0 123.333 26.629 74.98 74.98a259.849 259.849 0 0 0-22.158 25.235l86.308 86.308C162.883 146.72 206.376 120 256 120z"
-                                        data-original="#eb4132" />
-                                </svg>
-                                Link Google Account
-                            </a>
-                            <a href="/api/v1/users"
-                                class="py-2.5 px-4 text-slate-900 text-sm font-semibold rounded-md bg-white inline-block border border-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-slate-50 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:border-neutral-700">
-                                List Users</a>
-
-                            <a href="/api/v1/google/list"
-                                class="py-2.5 px-4 text-slate-900 text-sm font-semibold rounded-md bg-white inline-block border border-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-slate-50 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:border-neutral-700">
-                                List Messages</a>
-                        </div>
-                    </div>
-                </section>
             </div>
+        </nav>
+
+        <div class="flex items-start">
+            <!-- sidebar -->
+            <aside id="sidebar" class="relative lg:min-w-[264px] w-max max-lg:min-w-8">
+                <div id="sidebar-collapse-menu"
+                    class="bg-white border-r border-slate-300 w-full fixed top-[68px] left-0 py-6 px-4 overflow-auto h-[calc(100vh-68px)] lg:min-w-[264px] lg:w-max max-lg:w-0 max-lg:invisible transition-all duration-500 dark:bg-neutral-900 dark:border-neutral-700">
+                    <nav aria-label="Primary sidebar navigation">
+                        <ul class="space-y-1 text-sm text-slate-800 dark:text-slate-400 font-medium">
+                            <li>
+                                <a href="#" aria-current="page"
+                                    class="flex items-center gap-2.5 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-slate-50 dark:hover:bg-neutral-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="size-[18px] fill-current overflow-visible" viewBox="0 0 512 512"
+                                        aria-hidden="true">
+                                        <path
+                                            d="M426 495.983H86c-25.364 0-46-20.635-46-46v-242.02c0-8.836 7.163-16 16-16s16 7.164 16 16v242.02c0 7.72 6.28 14 14 14h340c7.72 0 14-6.28 14-14v-242.02c0-8.836 7.163-16 16-16s16 7.164 16 16v242.02c0 25.364-20.635 46-46 46"
+                                            data-original="#000000" />
+                                        <path
+                                            d="M496 263.958a15.95 15.95 0 0 1-11.313-4.687L285.698 60.284c-16.375-16.376-43.02-16.376-59.396 0L27.314 259.272c-6.248 6.249-16.379 6.249-22.627 0-6.249-6.248-6.249-16.379 0-22.627L203.675 37.656c28.852-28.852 75.799-28.852 104.65 0l198.988 198.988c6.249 6.249 6.249 16.379 0 22.627A15.94 15.94 0 0 1 496 263.958M320 495.983H192c-8.837 0-16-7.164-16-16v-142c0-27.57 22.43-50 50-50h60c27.57 0 50 22.43 50 50v142c0 8.836-7.163 16-16 16m-112-32h96v-126c0-9.925-8.075-18-18-18h-60c-9.925 0-18 8.075-18 18z"
+                                            data-original="#000000" />
+                                    </svg>
+                                    Home
+                                </a>
+                            </li>
+
+                            {% if user %}
+                            <li>
+                                <a href="/api/v1/users"
+                                    class="flex items-center gap-2.5 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-slate-50 dark:hover:bg-neutral-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="size-[18px] fill-current overflow-visible" viewBox="0 0 512 512"
+                                        aria-hidden="true">
+                                        <path
+                                            d="M253.414 103.434c48.556 0 87.919 40.52 87.919 90.505s-39.363 90.505-87.919 90.505-87.919-40.521-87.919-90.505 39.363-90.505 87.919-90.505m0 36.202c-28.324 0-51.717 24.081-51.717 54.303s23.393 54.303 51.717 54.303 51.717-24.081 51.717-54.303-23.393-54.303-51.717-54.303"
+                                            data-original="#000000" />
+                                        <path
+                                            d="M253.414 0c139.957 0 253.414 113.457 253.414 253.414 0 94.285-51.491 176.544-127.886 220.19-35.728 20.575-77.036 32.582-121.104 33.199l-4.423.025C113.457 506.828 0 393.371 0 253.414S113.457 0 253.414 0m-23.676 346.505c-46.331 0-87.479 29.378-102.607 73.008l-2.339 7.571c35.919 27.232 80.165 42.893 126.504 43.522l5.709-.009c38.24-.62 74.079-11.122 105.072-29.064l19.977-13.243-2.237-6.866c-14.371-44.046-55.062-74.052-101.239-74.901zm23.676-310.303c-119.963 0-217.212 97.249-217.212 217.212 0 57.493 22.337 109.77 58.807 148.624 21.668-55.072 74.965-91.735 134.73-91.735h46.831c59.905 0 113.311 36.835 134.885 92.121 36.686-38.892 59.172-91.325 59.172-149.01-.001-119.963-97.25-217.212-217.213-217.212"
+                                            data-original="#000000" />
+                                    </svg>
+                                    <span>List Users</span>
+                                </a>
+                            </li>
+
+                            <li>
+                                <a href="/api/v1/google/authorize"
+                                    class="flex items-center gap-2.5 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-slate-50 dark:hover:bg-neutral-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] overflow-visible"
+                                        viewBox="0 0 512 512" aria-hidden="true">
+                                        <path fill="#fbbd00"
+                                            d="M120 256c0-25.367 6.989-49.13 19.131-69.477v-86.308H52.823C18.568 144.703 0 198.922 0 256s18.568 111.297 52.823 155.785h86.308v-86.308C126.989 305.13 120 281.367 120 256z"
+                                            data-original="#fbbd00" />
+                                        <path fill="#0f9d58"
+                                            d="m256 392-60 60 60 60c57.079 0 111.297-18.568 155.785-52.823v-86.216h-86.216C305.044 385.147 281.181 392 256 392z"
+                                            data-original="#0f9d58" />
+                                        <path fill="#31aa52"
+                                            d="m139.131 325.477-86.308 86.308a260.085 260.085 0 0 0 22.158 25.235C123.333 485.371 187.62 512 256 512V392c-49.624 0-93.117-26.72-116.869-66.523z"
+                                            data-original="#31aa52" />
+                                        <path fill="#3c79e6"
+                                            d="M512 256a258.24 258.24 0 0 0-4.192-46.377l-2.251-12.299H256v120h121.452a135.385 135.385 0 0 1-51.884 55.638l86.216 86.216a260.085 260.085 0 0 0 25.235-22.158C485.371 388.667 512 324.38 512 256z"
+                                            data-original="#3c79e6" />
+                                        <path fill="#cf2d48"
+                                            d="m352.167 159.833 10.606 10.606 84.853-84.852-10.606-10.606C388.668 26.629 324.381 0 256 0l-60 60 60 60c36.326 0 70.479 14.146 96.167 39.833z"
+                                            data-original="#cf2d48" />
+                                        <path fill="#eb4132"
+                                            d="M256 120V0C187.62 0 123.333 26.629 74.98 74.98a259.849 259.849 0 0 0-22.158 25.235l86.308 86.308C162.883 146.72 206.376 120 256 120z"
+                                            data-original="#eb4132" />
+                                    </svg>
+                                    Link Google Account
+                                </a>
+                            </li>
+
+                            {% if user.is_linked %}
+                            <li>
+                                <a href="/api/v1/google/list"
+                                    class="flex items-center gap-2.5 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-slate-50 dark:hover:bg-neutral-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="size-[18px] fill-current overflow-visible" viewBox="0 0 28 28"
+                                        aria-hidden="true">
+                                        <switch transform="translate(-1.68 -1.68)scale(1.12)">
+                                            <g>
+                                                <path
+                                                    d="M20 26H8c-3.3 0-6-2.7-6-6V8c0-3.3 2.7-6 6-6h12c3.3 0 6 2.7 6 6v12c0 3.3-2.7 6-6 6M8 4C5.8 4 4 5.8 4 8v12c0 2.2 1.8 4 4 4h12c2.2 0 4-1.8 4-4V8c0-2.2-1.8-4-4-4zm6 16c-.6 0-1-.4-1-1v-4H9c-.6 0-1-.4-1-1s.4-1 1-1h4V9c0-.6.4-1 1-1s1 .4 1 1v4h4c.6 0 1 .4 1 1s-.4 1-1 1h-4v4c0 .6-.4 1-1 1"
+                                                    data-original="#000000" />
+                                            </g>
+                                        </switch>
+                                    </svg>
+                                    <span>List Messages</span>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% endif %}
+                        </ul>
+
+                    </nav>
+                </div>
+
+                <button id="toggle-sidebar"
+                    class="lg:hidden w-8 h-8 z-[100] fixed top-[74px] left-[10px] cursor-pointer bg-[#007bff] flex items-center justify-center rounded-full outline-0 transition-all duration-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="#fff" class="w-3 h-3" viewBox="0 0 55.752 55.752"
+                        aria-hidden="true">
+                        <path
+                            d="M43.006 23.916a5.36 5.36 0 0 0-.912-.727L20.485 1.581a5.4 5.4 0 0 0-7.637 7.638l18.611 18.609-18.705 18.707a5.398 5.398 0 1 0 7.634 7.635l21.706-21.703a5.35 5.35 0 0 0 .912-.727 5.373 5.373 0 0 0 1.574-3.912 5.363 5.363 0 0 0-1.574-3.912z"
+                            data-original="#000000" />
+                    </svg>
+                </button>
+            </aside>
+
+            <!-- middle contents -->
+            <section class="main-content w-full overflow-auto p-6">
+                <div class="mt-20 flex flex-col items-center justify-center">
+                    <div class="max-w-md w-full">
+
+                        <div
+                            class="p-6 rounded-lg bg-white border border-slate-300 shadow-xs md:p-8 dark:bg-neutral-800 dark:border-neutral-700">
+                            <h1 class="text-slate-900 text-center text-3xl font-bold dark:text-slate-50">Sign in
+                            </h1>
+
+                            <form class="space-y-6 mt-10" method="POST"
+                                action="/api/v1/login/access-token?redirect_uri=/">
+                                <div>
+                                    <label for="username"
+                                        class="mb-2 text-slate-900 font-medium text-sm inline-block dark:text-slate-50">Email</label>
+                                    <input type="email" id="username" name="username" placeholder="john@agora.fr"
+                                        required
+                                        class="px-3 py-2.5 text-sm text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 dark:text-slate-50 dark:bg-neutral-700 dark:outline-neutral-600" />
+                                </div>
+                                <div>
+                                    <label for="password"
+                                        class="mb-2 text-slate-900 font-medium text-sm inline-block dark:text-slate-50">Password</label>
+                                    <input type="password" id="password" name="password" placeholder="••••••••" required
+                                        class="px-3 py-2.5 text-sm text-slate-900 rounded-md bg-white w-full outline-1 -outline-offset-1 outline-slate-300 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 dark:text-slate-50 dark:bg-neutral-700 dark:outline-neutral-600" />
+                                </div>
+
+                                <button type="submit"
+                                    class="w-full py-2 px-3.5 text-sm rounded-md font-semibold cursor-pointer tracking-wide text-white border border-blue-600 bg-blue-600 hover:bg-blue-700 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                                    Sign in</button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
         </div>
     </main>
+
+
+
 </body>
 
 </html>

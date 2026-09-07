@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
 from agora.api import security
@@ -13,10 +14,12 @@ from agora.config.settings import settings
 router = APIRouter(tags=["login"])
 
 
-@router.post("/login/access-token")
+@router.post("/login/access-token", response_model=None)
 async def login_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], response: Response
-) -> Token:
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    response: Response,
+    redirect_uri: str | None = None,
+) -> Token | RedirectResponse:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
@@ -32,11 +35,26 @@ async def login_access_token(
             data={"sub": user.pk}, expires_delta=access_token_expires
         )
     )
+
+    if redirect_uri is not None:
+        redirect = RedirectResponse(url=redirect_uri, status_code=303)
+        redirect.set_cookie(
+            key="access_token",
+            value=f"{token.token_type.capitalize()} {token.access_token}",
+            httponly=True,
+            max_age=int(access_token_expires.total_seconds()),
+            secure=settings.FASTAPI_ENV != "development",  # Recommended for production
+            samesite="strict",
+        )
+        return redirect
+
     response.set_cookie(
         key="access_token",
         value=f"{token.token_type.capitalize()} {token.access_token}",
         httponly=True,
         max_age=int(access_token_expires.total_seconds()),
+        secure=settings.FASTAPI_ENV != "development",  # Recommended for production
+        samesite="strict",
     )
     return token
 
