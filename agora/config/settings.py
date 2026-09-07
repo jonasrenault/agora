@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     ################
     REDIS_URL: str
     REDIS_PREFIX: str = "agora"
+    REDIS_RESET_ON_STARTUP: bool = False  # Reset the Redis database on startup
 
     ################
     # FASTAPI SETTINGS

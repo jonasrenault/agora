@@ -1,9 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-import redis.asyncio as redis
 import uvicorn
-from aredis_om import SchemaMigrator
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from rich.logging import RichHandler
@@ -21,16 +19,10 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
-async def get_redis_client():
-    return redis.from_url(settings.REDIS_URL)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Make sure chromium driver is installed
     driver_install("chromium")
-    # Startup: Run migrations
-    await SchemaMigrator(await get_redis_client()).run()
     await init_db()
     LOGGER.info("[green]✓[/green] Migrations complete.")
     yield

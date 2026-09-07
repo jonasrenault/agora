@@ -1,6 +1,7 @@
 from typing import Annotated
 
 import jwt
+from aredis_om import NotFoundError
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
@@ -8,7 +9,6 @@ from jwt import InvalidTokenError
 from pydantic import ValidationError
 
 from agora.api import security
-from agora.api.crud import get_user_by_email
 from agora.api.models import TokenPayload, User
 from agora.config.settings import settings
 
@@ -51,8 +51,9 @@ async def get_current_user(token: TokenDep):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-    user = await get_user_by_email(email=token_data.sub)
-    if not user:
+    try:
+        user = await User.get(token_data.sub)
+    except NotFoundError:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")

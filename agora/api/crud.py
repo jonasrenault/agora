@@ -1,10 +1,17 @@
+import logging
 from datetime import datetime
 
-from aredis_om import NotFoundError
+from aredis_om import (
+    NotFoundError,
+    SchemaDetector,
+    get_redis_connection,
+)
 
 from agora.api.models import User, UserCreate, UserUpdate
 from agora.api.security import get_password_hash, verify_password
 from agora.config.settings import settings
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def create_user(*, user_create: UserCreate, is_superuser: bool = False) -> User:
@@ -57,6 +64,14 @@ async def get_user_by_email(*, email: str) -> User | None:
 
 
 async def init_db() -> None:
+    if settings.REDIS_RESET_ON_STARTUP:
+        LOGGER.warning("[yellow]⚠[/yellow] Resetting Redis database on startup.")
+        client = get_redis_connection(url=settings.REDIS_URL)
+        await client.flushdb()
+
+    # Run migrations
+    await SchemaDetector(conn=get_redis_connection(url=settings.REDIS_URL)).run()
+
     user = await get_user_by_email(email=settings.ADMIN_EMAIL)
     if not user:
         user_in = UserCreate(
