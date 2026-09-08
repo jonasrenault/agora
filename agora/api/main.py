@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from agora.api import templates
 from agora.api.crud import init_db
 from agora.api.deps import OptionalUser
+from agora.api.render import create_context
 from agora.api.routes.routes import api_router
 from agora.config import settings
 from agora.utils import driver_install
@@ -46,14 +47,9 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 async def home_page(request: Request, optional_user: OptionalUser) -> HTMLResponse:
-    context = {}
-    if optional_user:
-        context["user"] = {
-            "username": optional_user.username,
-            "email": optional_user.email,
-            "is_linked": optional_user.granted_scopes is not None,
-        }
-    return templates.TemplateResponse(request=request, name="index.html", context=context)
+    return templates.TemplateResponse(
+        request=request, name="index.html", context=create_context(optional_user)
+    )
 
 
 @app.get("/health-check/")

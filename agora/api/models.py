@@ -3,7 +3,6 @@ from datetime import date, datetime
 from aredis_om import Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, EmailStr
 
-from agora.agora import SlotColor
 from agora.config import settings
 
 
@@ -37,9 +36,10 @@ class User(JsonModel, index=True):  # type: ignore
     refresh_token: str | None = Field(default=None, index=False)
     granted_scopes: list[str] | None = Field(default=None, index=False)
 
-    # Agora Credentials
+    # Agora
     agora_email: EmailStr | None = Field(default=None, index=False)
     agora_password: EncryptedValue | None = Field(default=None, index=False)
+    agora_slots: list[date] | None = Field(default=None, index=False)
 
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
@@ -80,8 +80,3 @@ class UsersResponse(BaseModel):
     data: list[UserResponse]
     count: int
     page: int
-
-
-class Slot(BaseModel):
-    date: date
-    color: SlotColor | None = None

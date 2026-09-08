@@ -28,12 +28,16 @@ Configuration is managed with [pydantic-settings](https://pydantic.dev/docs/vali
 Set the required Env variables in a `.env` file in the root directory of the project. For example, add the following to [.env](./.env)
 
 ```.env
-AGORA_EMAIL=hello@test.com
-AGORA_PASSWORD=mysecretpwd
+ADMIN_EMAIL=admin@agora.fr
+ADMIN_PASSWORD=mysecretpwd
+ADMIN_AGORA_EMAIL=hello@test.com
+ADMIN_AGORA_PASSWORD=anothersecretpwd
+
 FASTAPI_ENV=development
-PROJECT_NAME="Agora API"
 SECRET_KEY=3e9429d6b2e7f3c576e74c428edd6677952328bb9bbd9516edc300c236bae3d3
-ADMIN_PASSWORD=anothersecretpwd
+
+REDIS_URL="redis://default:*******@obedient-crack-pie-redis.io:18976"
+REDIS_RESET_ON_STARTUP=False
 ```
 
 ## FastAPI
