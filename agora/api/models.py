@@ -17,6 +17,13 @@ class TokenPayload(BaseModel):
     sub: str | None = None
 
 
+class EncryptedValue(BaseModel):
+    salt: str
+    nonce: str
+    tag: str
+    ciphertext: str
+
+
 class User(JsonModel, index=True):  # type: ignore
     email: EmailStr = Field(index=True)
     username: str | None = Field(default=None, index=True)
@@ -31,7 +38,8 @@ class User(JsonModel, index=True):  # type: ignore
     granted_scopes: list[str] | None = Field(default=None, index=False)
 
     # Agora Credentials
-    agora_email: EmailStr = Field(index=False)
+    agora_email: EmailStr | None = Field(default=None, index=False)
+    agora_password: EncryptedValue | None = Field(default=None, index=False)
 
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
@@ -45,7 +53,7 @@ class User(JsonModel, index=True):  # type: ignore
 
 
 class UserCreate(BaseModel):
-    email: str
+    email: EmailStr
     username: str | None = None
     password: str
 

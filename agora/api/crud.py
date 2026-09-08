@@ -10,6 +10,7 @@ from aredis_om import (
 from agora.api.models import User, UserCreate, UserUpdate
 from agora.api.security import get_password_hash, verify_password
 from agora.config import settings
+from agora.crypto import encrypt
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +80,9 @@ async def init_db() -> None:
             password=settings.ADMIN_PASSWORD,
         )
         user = await create_user(user_create=user_in, is_superuser=True)
+        user.agora_email = settings.ADMIN_AGORA_EMAIL
+        user.agora_password = encrypt(settings.ADMIN_AGORA_PASSWORD, settings.SECRET_KEY)
+        await user.save()
 
 
 # Dummy hash to use for timing attack prevention when user is not found

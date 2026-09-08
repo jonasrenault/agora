@@ -282,8 +282,8 @@ for (const [key, value] of Object.entries(entries)) {
 
 async def book_agora(
     home_page: str = settings.AGORA_HOME_PAGE,
-    email: str = settings.AGORA_EMAIL,
-    pwd: str = settings.AGORA_PASSWORD,
+    email: str = settings.ADMIN_AGORA_EMAIL,
+    pwd: str = settings.ADMIN_AGORA_PASSWORD,
     dates: list[date] = [
         date(2026, 10, 22),
         date(2026, 10, 24),

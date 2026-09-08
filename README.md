@@ -23,7 +23,7 @@ playwright install chromium
 
 ### Configuration
 
-Configuration is managed with [pydantic-settings](https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/) in the [settings.py](./agora/config/settings.py) file.
+Configuration is managed with [pydantic-settings](https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/) in the [config.py](./agora/config/config.py) module.
 
 Set the required Env variables in a `.env` file in the root directory of the project. For example, add the following to [.env](./.env)
 

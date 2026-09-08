@@ -15,10 +15,6 @@ class Settings(BaseSettings):
     AGORA_HOME_PAGE: str = (
         "https://portalssl.agoraplus.fr/images_stmalo/v3/pck_home/home_view_local.html#/"
     )
-    # User email for logging into Agora Plus
-    AGORA_EMAIL: str = "admin@agora.fr"
-    # User password for logging into Agora Plus
-    AGORA_PASSWORD: str = "changethis"
 
     ################
     # REDIS SETTINGS
@@ -36,9 +32,17 @@ class Settings(BaseSettings):
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     PROJECT_NAME: str = "Agora API"
+    TEMPLATES_DIR: Path = ROOT_DIR / "templates"
+
+    ################
+    # DEFAULT ADMIN SETTINGS
+    ################
     ADMIN_EMAIL: str = "admin@agora.fr"
     ADMIN_PASSWORD: str = "changethis"
-    TEMPLATES_DIR: Path = ROOT_DIR / "templates"
+    # User email for logging into Agora Plus
+    ADMIN_AGORA_EMAIL: str = "admin@agora.fr"
+    # User password for logging into Agora Plus
+    ADMIN_AGORA_PASSWORD: str = "changethis"
 
     ################
     # GOOGLE API SETTINGS
