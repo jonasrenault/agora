@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from agora.api import security
 from agora.api.models import TokenPayload, User
-from agora.config.settings import settings
+from agora.config import settings
 
 
 class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):

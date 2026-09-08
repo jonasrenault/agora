@@ -4,7 +4,7 @@ from aredis_om import Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, EmailStr
 
 from agora.agora import SlotColor
-from agora.config.settings import settings
+from agora.config import settings
 
 
 class Token(BaseModel):
@@ -25,9 +25,13 @@ class User(JsonModel, index=True):  # type: ignore
     hashed_password: str = Field(index=False)
     created_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
 
+    # Google Credentials
     token: str | None = Field(default=None, index=False)
     refresh_token: str | None = Field(default=None, index=False)
     granted_scopes: list[str] | None = Field(default=None, index=False)
+
+    # Agora Credentials
+    agora_email: EmailStr = Field(index=False)
 
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX

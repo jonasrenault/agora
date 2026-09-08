@@ -11,7 +11,7 @@ from agora.api import templates
 from agora.api.crud import init_db
 from agora.api.deps import OptionalUser
 from agora.api.routes.routes import api_router
-from agora.config.settings import settings
+from agora.config import settings
 from agora.utils import driver_install
 
 FORMAT = "%(message)s"

@@ -9,7 +9,7 @@ from aredis_om import (
 
 from agora.api.models import User, UserCreate, UserUpdate
 from agora.api.security import get_password_hash, verify_password
-from agora.config.settings import settings
+from agora.config import settings
 
 LOGGER = logging.getLogger(__name__)
 

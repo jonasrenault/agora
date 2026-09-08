@@ -8,7 +8,7 @@ from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
-from agora.config.settings import settings
+from agora.config import settings
 
 LOGGER = logging.getLogger(__name__)
 

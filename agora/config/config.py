@@ -16,14 +16,14 @@ class Settings(BaseSettings):
         "https://portalssl.agoraplus.fr/images_stmalo/v3/pck_home/home_view_local.html#/"
     )
     # User email for logging into Agora Plus
-    AGORA_EMAIL: str
+    AGORA_EMAIL: str = "admin@agora.fr"
     # User password for logging into Agora Plus
-    AGORA_PASSWORD: str
+    AGORA_PASSWORD: str = "changethis"
 
     ################
     # REDIS SETTINGS
     ################
-    REDIS_URL: str
+    REDIS_URL: str = "redis://default:****@obedient-crack-pie.redis.io:17853"
     REDIS_PREFIX: str = "agora"
     REDIS_RESET_ON_STARTUP: bool = False  # Reset the Redis database on startup
 
@@ -31,13 +31,13 @@ class Settings(BaseSettings):
     # FASTAPI SETTINGS
     ################
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str
+    SECRET_KEY: str = "changethis"
     FASTAPI_ENV: Literal["development"] | None = None
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    PROJECT_NAME: str
-    ADMIN_EMAIL: str
-    ADMIN_PASSWORD: str
+    PROJECT_NAME: str = "Agora API"
+    ADMIN_EMAIL: str = "admin@agora.fr"
+    ADMIN_PASSWORD: str = "changethis"
     TEMPLATES_DIR: Path = ROOT_DIR / "templates"
 
     ################
@@ -46,6 +46,3 @@ class Settings(BaseSettings):
     CREDENTIALS_DIR: Path = ROOT_DIR / ".credentials"
     CREDENTIALS_FILE_NAME: str = "credentials.json"
     TOKEN_FILE_NAME: str = "token.json"
-
-
-settings = Settings()  # type: ignore

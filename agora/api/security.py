@@ -3,10 +3,9 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
 
-from agora.config.settings import settings
+from agora.config import settings
 
 password_hash = PasswordHash.recommended()
-
 ALGORITHM = "HS256"
 
 

@@ -9,7 +9,7 @@ from agora.api import security
 from agora.api.crud import authenticate_user
 from agora.api.deps import CurrentUser
 from agora.api.models import Token, UserResponse
-from agora.config.settings import settings
+from agora.config import settings
 
 router = APIRouter(tags=["login"])
 

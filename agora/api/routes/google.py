@@ -10,7 +10,7 @@ from googleapiclient import errors as google_api_errors
 from googleapiclient.discovery import build
 
 from agora.api.deps import CurrentSuperUser
-from agora.config.settings import settings
+from agora.config import settings
 
 router = APIRouter(prefix="/google", tags=["google"])
 
