@@ -1,7 +1,8 @@
 from datetime import date, datetime
+from typing import Annotated, TypeVar
 
 from aredis_om import Field, JsonModel, get_redis_connection
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, BeforeValidator, EmailStr
 
 from agora.config import settings
 
@@ -65,6 +66,38 @@ class UserUpdate(BaseModel):
     is_superuser: bool | None = None
     username: str | None = None
     password: str | None = None
+
+
+def parse_date_list(value: str | list[str] | list[date] | None) -> list[date] | None:
+    if isinstance(value, str):
+        return [datetime.strptime(v, "%d/%m/%Y") for v in value.split(",")]
+    if isinstance(value, list):
+        result = []
+        for v in value:
+            if isinstance(v, str) and v:
+                result.extend(
+                    [
+                        datetime.strptime(s.strip(), "%d/%m/%Y").date()
+                        for s in v.split(",")
+                    ]
+                )
+            elif isinstance(v, date):
+                result.append(v)
+        if not result:
+            return None
+        return result
+    return value
+
+
+# Validator to convert empty strings to None
+T = TypeVar("T")
+EmptyToNone = Annotated[T, BeforeValidator(lambda v: None if v == "" else v)]
+
+
+class UserAgoraUpdate(BaseModel):
+    agora_email: EmptyToNone[EmailStr | None] = None
+    agora_password: EmptyToNone[str | None] = None
+    agora_slots: Annotated[list[date] | None, BeforeValidator(parse_date_list)] = None
 
 
 class UserResponse(BaseModel):
