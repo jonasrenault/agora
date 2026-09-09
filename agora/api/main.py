@@ -2,14 +2,14 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
 
 from agora.api import templates
 from agora.api.crud import init_db
-from agora.api.deps import OptionalUser
+from agora.api.deps import CurrentUser, OptionalUser
 from agora.api.render import create_context
 from agora.api.routes.routes import api_router
 from agora.config import settings
@@ -46,9 +46,18 @@ app.add_middleware(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home_page(request: Request, optional_user: OptionalUser) -> HTMLResponse:
+async def home_page(request: Request, optional_user: OptionalUser) -> Response:
+    if optional_user is not None:
+        return RedirectResponse(url=request.url_for("dashboard"))
     return templates.TemplateResponse(
         request=request, name="index.html", context=create_context(optional_user)
+    )
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, current_user: CurrentUser) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request, name="dashboard.html", context=create_context(current_user)
     )
 
 
