@@ -52,7 +52,7 @@ async def agora_settings_page(
             [v.strftime("%d/%m/%Y") for v in current_user.agora_slots]
         )
     return templates.TemplateResponse(
-        request=request, name="user_agora.html", context=context
+        request=request, name="pages/agora_settings.html", context=context
     )
 
 

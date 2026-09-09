@@ -50,14 +50,14 @@ async def home_page(request: Request, optional_user: OptionalUser) -> Response:
     if optional_user is not None:
         return RedirectResponse(url=request.url_for("dashboard"))
     return templates.TemplateResponse(
-        request=request, name="index.html", context=create_context(optional_user)
+        request=request, name="pages/index.html", context=create_context(optional_user)
     )
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, current_user: CurrentUser) -> HTMLResponse:
     return templates.TemplateResponse(
-        request=request, name="dashboard.html", context=create_context(current_user)
+        request=request, name="pages/dashboard.html", context=create_context(current_user)
     )
 
 
