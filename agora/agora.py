@@ -8,6 +8,7 @@ from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
+from agora.api.models import AgoraResult
 from agora.config import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -26,15 +27,6 @@ class SlotColor(str, Enum):
     green = "green"
     yellow = "yellow"
     white = "white"
-
-
-class AgoraResult(str, Enum):
-    success = "success"  # slot was successfully reserved
-    alert = "alert"  # slot was full, an alert was created instead
-    already_booked = "already_booked"  # slot was already booked
-    unavailable = "unavailable"  # slot was unavailable and an alert already existed
-    not_found = "not_found"  # slot not found (e.g. weekend date)
-    too_late = "too_late"  # too late to reserve slot
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):

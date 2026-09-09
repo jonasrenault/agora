@@ -1,7 +1,8 @@
 from datetime import date, datetime
+from enum import Enum
 from typing import Annotated, TypeVar
 
-from aredis_om import Field, JsonModel, get_redis_connection
+from aredis_om import EmbeddedJsonModel, Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, BeforeValidator, EmailStr
 
 from agora.config import settings
@@ -113,3 +114,24 @@ class UsersResponse(BaseModel):
     data: list[UserResponse]
     count: int
     page: int
+
+
+class AgoraResult(str, Enum):
+    success = "success"  # slot was successfully reserved
+    alert = "alert"  # slot was full, an alert was created instead
+    already_booked = "already_booked"  # slot was already booked
+    unavailable = "unavailable"  # slot was unavailable and an alert already existed
+    not_found = "not_found"  # slot not found (e.g. weekend date)
+    too_late = "too_late"  # too late to reserve slot
+
+
+class AgoraSlot(BaseModel):
+    slot: date
+    result: AgoraResult | None = None
+
+
+class AgoraRun(EmbeddedJsonModel, index=True):  # type: ignore
+
+    started_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
+    finished_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
+    slots: list[AgoraSlot] = Field(default_factory=list, index=False)

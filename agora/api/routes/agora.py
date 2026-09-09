@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
@@ -6,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import User, UserAgoraUpdate
+from agora.api.models import AgoraRun, AgoraSlot, User, UserAgoraUpdate
 from agora.api.render import create_context
 from agora.config import settings
 from agora.crypto import encrypt
@@ -14,10 +15,10 @@ from agora.crypto import encrypt
 router = APIRouter(prefix="/agora", tags=["agora"])
 
 
-@router.post("/")
-async def book_slot(*, current_user: CurrentUser):
+@router.post("/book")
+async def book(*, current_user: CurrentUser):
     """
-    Book a slot on agora.
+    Book user's slots on Agora.
     """
     if not current_user.agora_slots:
         raise HTTPException(
@@ -25,7 +26,15 @@ async def book_slot(*, current_user: CurrentUser):
             detail="No slots to reserve for current user.",
         )
 
-    await book_agora(dates=current_user.agora_slots)
+    slots = [AgoraSlot(slot=d) for d in current_user.agora_slots]
+    run = AgoraRun(slots=slots)
+    try:
+        results = await book_agora(dates=current_user.agora_slots)
+        for slot in run.slots:
+            slot.result = results[slot.slot]
+    finally:
+        run.finished_at = datetime.now()
+        await run.save()
 
 
 @router.get("/settings")
