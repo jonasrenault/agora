@@ -1,13 +1,44 @@
 from aredis_om import NotFoundError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 
-from agora.api import crud
-from agora.api.deps import get_current_active_superuser
+from agora.api import crud, templates
+from agora.api.deps import CurrentUser, get_current_active_superuser
 from agora.api.models import User, UserCreate, UserResponse, UsersResponse
+from agora.api.render import create_context
 
 router = APIRouter(
     prefix="/users", tags=["users"], dependencies=[Depends(get_current_active_superuser)]
 )
+
+
+@router.get("/list")
+async def users_list_page(
+    request: Request,
+    current_user: CurrentUser,
+    username: str | None = None,
+    email: str | None = None,
+    is_active: bool | None = None,
+    sort_by: str = Query("created_at", pattern="^-?created_at$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+) -> HTMLResponse:
+    """
+    Page to list users.
+    """
+    users = await list_users(
+        username=username,
+        email=email,
+        is_active=is_active,
+        sort_by=sort_by,
+        page=page,
+        page_size=page_size,
+    )
+    context = create_context(current_user)
+    context["users"] = users
+    return templates.TemplateResponse(
+        request=request, name="pages/users.html", context=context
+    )
 
 
 @router.post("/", response_model=UserResponse)

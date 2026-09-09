@@ -1,20 +1,22 @@
 {% extends "layouts/base.html" %}
 
 {% block content %}
-<main class="drawer lg:drawer-open">
+<div class="drawer lg:drawer-open min-h-screen">
     <input id="left-sidebar-drawer" type="checkbox" class="drawer-toggle" />
     <section class="drawer-content flex flex-col">
         <!-- Navbar -->
-        <nav class="navbar bg-base-100">
+        <nav class="navbar sticky top-0 z-50">
             {% include "components/_navbar.html" %}
         </nav>
-        <!-- Page content here -->
-        {% block dashboard_content %}{% endblock %}
+
+        <main class="flex-1">
+            <!-- Page content here -->
+            {% block dashboard_content %}{% endblock %}
+        </main>
     </section>
     <aside class="drawer-side">
         <label for="left-sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
         {% include "components/_sidebar.html" %}
-
     </aside>
-</main>
+</div>
 {% endblock %}

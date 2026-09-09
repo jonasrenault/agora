@@ -1,0 +1,39 @@
+{% extends "layouts/dashboard_base.html" %}
+
+{% block title %}Agora | Users{% endblock %}
+
+{% block dashboard_content %}
+<div class="mt-4 flex flex-col items-center justify-center">
+    <h1 class="text-center text-xl font-bold mb-5">Users</h1>
+
+    <div class="w-full p-4">
+        <div class="overflow-x-auto">
+            <table class="table">
+                <!-- head -->
+                <thead>
+                    <tr>
+                        <th>pk</th>
+                        <th>Email</th>
+                        <th>Username</th>
+                        <th>Is Active</th>
+                        <th>Is SuperUser</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- row 1 -->
+                    {% for user in users.data %}
+                    <tr>
+                        <th>{{ user.pk }}</th>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.is_active }}</td>
+                        <td>{{ user.is_superuser }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
