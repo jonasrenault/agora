@@ -4,23 +4,23 @@
 
 {% block dashboard_content %}
 <div class="mt-4 flex flex-col items-center justify-center">
-    <h1 class="text-center text-xl font-bold mb-5">Agora Settings</h1>
+    <h1 class="text-center text-xl font-bold mb-5">Agora Portal Settings</h1>
 
     <div class="max-w-md w-full">
         <div>
             <form class="space-y-6" method="POST" action="/api/v1/agora/settings">
                 <div>
-                    <label for="email" class="mb-2 font-medium text-sm inline-block">Agora Email</label>
+                    <label for="email" class="mb-2 font-medium text-sm inline-block">Agora Portal Email</label>
                     <input type="email" id="email" name="agora_email" placeholder="john@agora.fr"
                         value="{{ user.agora_email }}" class="input w-full" />
                 </div>
                 <div>
-                    <label for="password" class="mb-2 font-medium text-sm inline-block">Agora Password</label>
+                    <label for="password" class="mb-2 font-medium text-sm inline-block">Agora Portal Password</label>
                     <input type="password" id="password" name="agora_password" placeholder="••••••••"
                         class="input w-full" />
                 </div>
                 <div>
-                    <label for="agora_slots" class="mb-2 font-medium text-sm inline-block">Agora Slots</label>
+                    <label for="agora_slots" class="mb-2 font-medium text-sm inline-block">Activity Dates</label>
                     <input type="text" id="slots" name="agora_slots" placeholder="19/10/2026, 20/10/2026"
                         value="{{ user.agora_slots }}" class="input w-full " />
                 </div>
