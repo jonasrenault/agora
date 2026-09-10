@@ -25,6 +25,30 @@ class EncryptedValue(BaseModel):
     ciphertext: str
 
 
+class AgoraResult(str, Enum):
+    success = "success"  # slot was successfully reserved
+    alert = "alert"  # slot was full, an alert was created instead
+    already_booked = "already_booked"  # slot was already booked
+    unavailable = "unavailable"  # slot was unavailable and an alert already existed
+    not_found = "not_found"  # slot not found (e.g. weekend date)
+    too_late = "too_late"  # too late to reserve slot
+
+
+class AgoraSlot(BaseModel):
+    slot: date
+    result: AgoraResult | None = None
+
+
+class AgoraRun(EmbeddedJsonModel):  # type: ignore
+
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: datetime = Field(default_factory=datetime.now)
+    slots: list[AgoraSlot] = Field(default_factory=list)
+
+    error: bool = Field(default=False)
+    logs: str = Field(default="")
+
+
 class User(JsonModel, index=True):  # type: ignore
     email: EmailStr = Field(index=True)
     username: str | None = Field(default=None, index=True)
@@ -42,6 +66,7 @@ class User(JsonModel, index=True):  # type: ignore
     agora_email: EmailStr | None = Field(default=None, index=False)
     agora_password: EncryptedValue | None = Field(default=None, index=False)
     agora_slots: list[date] | None = Field(default=None, index=False)
+    agora_runs: list[AgoraRun] = Field(default_factory=list, index=False)
 
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
@@ -114,24 +139,3 @@ class UsersResponse(BaseModel):
     data: list[UserResponse]
     count: int
     page: int
-
-
-class AgoraResult(str, Enum):
-    success = "success"  # slot was successfully reserved
-    alert = "alert"  # slot was full, an alert was created instead
-    already_booked = "already_booked"  # slot was already booked
-    unavailable = "unavailable"  # slot was unavailable and an alert already existed
-    not_found = "not_found"  # slot not found (e.g. weekend date)
-    too_late = "too_late"  # too late to reserve slot
-
-
-class AgoraSlot(BaseModel):
-    slot: date
-    result: AgoraResult | None = None
-
-
-class AgoraRun(EmbeddedJsonModel, index=True):  # type: ignore
-
-    started_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
-    finished_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
-    slots: list[AgoraSlot] = Field(default_factory=list, index=False)

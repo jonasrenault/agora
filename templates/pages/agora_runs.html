@@ -1,0 +1,60 @@
+{% extends "layouts/dashboard_base.html" %}
+
+{% block title %}Agora | Runs{% endblock %}
+
+{% block dashboard_content %}
+<div class="mt-4 flex flex-col items-center justify-center">
+    <h1 class="text-center text-xl font-bold mb-5">Agora Portal Automation Runs</h1>
+
+    <form class="mb-5 self-start mx-6" method="POST" action="{{ url_for('book') }}">
+        <button type="submit" class="btn btn-primary w-full mt-2">Run Automation</button>
+    </form>
+
+    <div class="w-full px-2">
+        <ul class="list">
+
+            <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Automation Runs</li>
+
+            {% for run in runs %}
+            <li class="list-row">
+                <div
+                    class="card {{ 'bg-error' if run.error  else 'bg-base-300'}} card-border shadow-xs text-primary-content list-col-grow">
+                    <div class="card-body">
+                        <div class="card-title flex">
+                            <h2 class="flex-1">{{ run.started_at.strftime('%d-%m-%Y %H:%M:%S') }}</h2>
+                            <h2>{{ '{:.0f}s'.format((run.finished_at - run.started_at).total_seconds()) }}</h2>
+                        </div>
+
+                        <div class="mb-2">
+                            {% for slot in run.slots %}
+                            <div class="tooltip {{ slot.result | result_class('tooltip-') }}">
+                                <div class="tooltip-content">
+                                    <div class="">{{slot.result | result_tooltip}}</div>
+                                </div>
+                                <div class="badge badge-md {{ slot.result | result_class('badge-') }}">{{
+                                    slot.slot.strftime('%d-%m-%Y') }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="collapse bg-base-100 border border-base-100">
+                            <input type="checkbox" />
+                            <div class="collapse-title font-semibold">Logs</div>
+                            <div class="collapse-content text-sm">
+                                <div class="max-h-96 overflow-y-auto">
+                                    {% for line in run.logs.splitlines() %}
+                                    <p>{{ line }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+
+        </ul>
+    </div>
+</div>
+{% endblock %}

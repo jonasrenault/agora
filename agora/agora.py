@@ -1,3 +1,4 @@
+import io
 import locale
 import logging
 from datetime import date, datetime
@@ -8,7 +9,7 @@ from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
-from agora.api.models import AgoraResult
+from agora.api.models import AgoraResult, AgoraRun, AgoraSlot
 from agora.config import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -272,8 +273,52 @@ for (const [key, value] of Object.entries(entries)) {
     return context
 
 
+async def _run(
+    home_page: str,
+    email: str,
+    pwd: str,
+    slots: list[AgoraSlot],
+    headless: bool,
+    save_dir: Path,
+    dry_run: bool,
+):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=headless)
+        context = await _get_context(browser, save_dir)
+        page = await context.new_page()
+
+        LOGGER.info(f"Visiting {home_page}")
+        await page.goto(home_page, wait_until="networkidle")
+        try:
+            # Login if required and save state
+            logged_in = await _login(page, email, pwd)
+            if logged_in:
+                await _save_state(context, page, save_dir)
+
+            await _go_to_reservations(page)
+
+            for slot in slots:
+                await _select_date(page, slot.slot)
+                slot.result = await _reserve_slot(page, slot.slot)
+
+            LOGGER.info("\n".join([str(s) for s in slots]))
+            if (
+                any([slot.result is AgoraResult.success for slot in slots])
+                and not dry_run
+            ):
+                await _submit_reservations(page)
+            else:
+                LOGGER.info(
+                    "[yellow]⚠ No slots booked or dry run. Not submitting.[/yellow]"
+                )
+        except Exception as e:
+            await _log_page(page, save_dir)
+            raise e
+
+        await _log_page(page, save_dir)
+
+
 async def book_agora(
-    home_page: str = settings.AGORA_HOME_PAGE,
     email: str = settings.ADMIN_AGORA_EMAIL,
     pwd: str = settings.ADMIN_AGORA_PASSWORD,
     dates: list[date] = [
@@ -285,45 +330,41 @@ async def book_agora(
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
     locale_code: str = "fr_FR",
-) -> dict[date, AgoraResult]:
+    dry_run: bool = True,
+) -> AgoraRun:
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
 
     # Set the locale for date formatting
     locale.setlocale(locale.LC_ALL, locale_code)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=headless)
-        context = await _get_context(browser, save_dir)
-        page = await context.new_page()
+    # Add stream handler to logger
+    log_stream = io.StringIO()
+    handler = logging.StreamHandler(log_stream)
+    handler.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
+    LOGGER.addHandler(handler)
 
-        LOGGER.info(f"Visiting {home_page}")
-        await page.goto(home_page, wait_until="networkidle")
-        results: dict[date, AgoraResult] = {}
-        try:
-            # Login if required and save state
-            logged_in = await _login(page, email, pwd)
-            if logged_in:
-                await _save_state(context, page, save_dir)
+    run = AgoraRun(slots=[AgoraSlot(slot=d) for d in dates])
+    try:
+        await _run(
+            home_page=settings.AGORA_HOME_PAGE,
+            email=email,
+            pwd=pwd,
+            slots=run.slots,
+            headless=headless,
+            save_dir=save_dir,
+            dry_run=dry_run,
+        )
+        run.error = False
+    except Exception:
+        LOGGER.error(
+            f"An exception occured while visiting {settings.AGORA_HOME_PAGE}",
+            exc_info=True,
+        )
+        run.error = True
+    finally:
+        run.finished_at = datetime.now()
+        run.logs = log_stream.getvalue()
+        LOGGER.removeHandler(handler)
 
-            await _go_to_reservations(page)
-
-            for slot_date in dates:
-                await _select_date(page, slot_date)
-                result = await _reserve_slot(page, slot_date)
-                results[slot_date] = result
-
-            LOGGER.info("\n".join(f"{d}: {r}" for d, r in results.items()))
-            if AgoraResult.success in results.values():
-                await _submit_reservations(page)
-            else:
-                LOGGER.info("[yellow]⚠ No slots booked, not submitting.[/yellow]")
-        except Exception as e:
-            LOGGER.error(
-                f"An exception occured while visiting {home_page}", exc_info=True
-            )
-            await _log_page(page, save_dir)
-            raise e
-
-        await _log_page(page, save_dir)
-        return results
+    return run

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
@@ -7,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import AgoraRun, AgoraSlot, User, UserAgoraUpdate
+from agora.api.models import User, UserAgoraUpdate
 from agora.api.render import create_context
 from agora.config import settings
 from agora.crypto import encrypt
@@ -26,15 +25,21 @@ async def book(*, current_user: CurrentUser):
             detail="No slots to reserve for current user.",
         )
 
-    slots = [AgoraSlot(slot=d) for d in current_user.agora_slots]
-    run = AgoraRun(slots=slots)
-    try:
-        results = await book_agora(dates=current_user.agora_slots)
-        for slot in run.slots:
-            slot.result = results[slot.slot]
-    finally:
-        run.finished_at = datetime.now()
-        await run.save()
+    run = await book_agora(dates=current_user.agora_slots)
+    current_user.agora_runs.append(run)
+    await current_user.save()
+
+
+@router.get("/runs")
+async def runs(request: Request, current_user: CurrentUser) -> HTMLResponse:
+    """
+    Page to list Agora Runs
+    """
+    context = create_context(current_user)
+    context["runs"] = current_user.agora_runs
+    return templates.TemplateResponse(
+        request=request, name="pages/agora_runs.html", context=context
+    )
 
 
 @router.get("/settings")
