@@ -1,6 +1,6 @@
 import subprocess
 
-from playwright._impl._driver import compute_driver_executable, get_driver_env
+from patchright._impl._driver import compute_driver_executable, get_driver_env
 
 
 def driver_install(*args):
