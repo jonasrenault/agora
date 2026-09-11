@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Make sure chromium driver is installed
-    driver_install("chromium")
+    driver_install("chromium", "--with-deps")
     await init_db()
     LOGGER.info("[green]✓[/green] Migrations complete.")
     yield
