@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Annotated, TypeVar
 
 from aredis_om import EmbeddedJsonModel, Field, JsonModel, get_redis_connection
-from pydantic import BaseModel, BeforeValidator, EmailStr
+from pydantic import BaseModel, BeforeValidator, EmailStr, computed_field
 
 from agora.config import settings
 
@@ -38,8 +38,34 @@ class AgoraSlot(BaseModel):
     slot: date
     result: AgoraResult | None = None
 
+    @property
+    @computed_field
+    def result_class(self) -> str:
+        if self.result is AgoraResult.success:
+            return "success"
+        if self.result is AgoraResult.alert:
+            return "info"
+        if self.result is AgoraResult.already_booked:
+            return "secondary"
+        if self.result is AgoraResult.unavailable:
+            return "error"
+        return "warning"
 
-class AgoraRun(EmbeddedJsonModel):  # type: ignore
+    @property
+    @computed_field
+    def result_tooltip(self) -> str:
+        if self.result is AgoraResult.success:
+            return "Booked successfully"
+        if self.result is AgoraResult.alert:
+            return "Alert created"
+        if self.result is AgoraResult.already_booked:
+            return "Slot was already booked"
+        if self.result is AgoraResult.unavailable:
+            return "Slot was full"
+        return "Unable to book slot"
+
+
+class AgoraRun(EmbeddedJsonModel):
 
     started_at: datetime = Field(default_factory=datetime.now)
     finished_at: datetime = Field(default_factory=datetime.now)
@@ -47,6 +73,7 @@ class AgoraRun(EmbeddedJsonModel):  # type: ignore
 
     error: bool = Field(default=False)
     logs: str = Field(default="")
+    screenshot: str | None = Field(default=None)
 
 
 class User(JsonModel, index=True):  # type: ignore

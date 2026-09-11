@@ -1,6 +1,7 @@
 import io
 import locale
 import logging
+from base64 import b64encode
 from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
@@ -49,6 +50,14 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
     if show:
         screenshot = Image.open(screen)
         screenshot.show()
+
+
+def _get_screenshot_base64(save_dir: Path) -> str | None:
+    screen = save_dir / "screenshot.png"
+    if screen.exists():
+        with open(screen, "rb") as image_file:
+            return b64encode(image_file.read()).decode("utf-8")
+    return None
 
 
 async def _get_slot_index(page: Page, date: date) -> int:
@@ -226,6 +235,15 @@ async def _login(page: Page, email: str, pwd: str) -> bool:
 
 
 async def _save_state(context: BrowserContext, page: Page, save_dir: Path):
+    """
+    Save the session's state and local storage to disk.
+    Currently unused as it does not seem to work.
+
+    Args:
+        context (BrowserContext): browser context
+        page (Page): the page
+        save_dir (Path): the save directory
+    """
     # Save the storage state to a JSON file
     storage_state_path = save_dir / STORAGE_STATE_FILE
     LOGGER.info(f"Saving storage state to {storage_state_path}")
@@ -290,11 +308,7 @@ async def _run(
         LOGGER.info(f"Visiting {home_page}")
         await page.goto(home_page, wait_until="networkidle")
         try:
-            # Login if required and save state
-            logged_in = await _login(page, email, pwd)
-            if logged_in:
-                await _save_state(context, page, save_dir)
-
+            await _login(page, email, pwd)
             await _go_to_reservations(page)
 
             for slot in slots:
@@ -364,7 +378,8 @@ async def book_agora(
         run.error = True
     finally:
         run.finished_at = datetime.now()
-        run.logs = log_stream.getvalue()
         LOGGER.removeHandler(handler)
+        run.logs = log_stream.getvalue()
+        run.screenshot = _get_screenshot_base64(save_dir)
 
     return run

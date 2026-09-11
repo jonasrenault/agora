@@ -27,11 +27,11 @@
 
                         <div class="mb-2">
                             {% for slot in run.slots %}
-                            <div class="tooltip {{ slot.result | result_class('tooltip-') }}">
+                            <div class="tooltip {{ 'tooltip-' + slot.result_class }}">
                                 <div class="tooltip-content">
-                                    <div class="">{{slot.result | result_tooltip}}</div>
+                                    <div class="">{{ slot.result_tooltip }}</div>
                                 </div>
-                                <div class="badge badge-md {{ slot.result | result_class('badge-') }}">{{
+                                <div class="badge badge-md {{ 'badge-' + slot.result_class }}">{{
                                     slot.slot.strftime('%d-%m-%Y') }}
                                 </div>
                             </div>
@@ -49,6 +49,18 @@
                                 </div>
                             </div>
                         </div>
+
+                        {% if run.screenshot is not none %}
+
+                        <div class="collapse bg-base-100 border border-base-100">
+                            <input type="checkbox" />
+                            <div class="collapse-title font-semibold">Screenshot</div>
+                            <div class="collapse-content text-sm">
+                                <img class="max-h-96" src="data:image/png;base64,{{ run.screenshot }}" alt="Screenshot">
+                            </div>
+                        </div>
+
+                        {% endif %}
                     </div>
                 </div>
             </li>
