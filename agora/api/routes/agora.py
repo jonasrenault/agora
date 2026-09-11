@@ -1,12 +1,13 @@
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import User, UserAgoraUpdate
+from agora.api.models import AgoraResult, UserAgoraUpdate
 from agora.api.render import create_context
 from agora.config import settings
 from agora.crypto import encrypt
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/agora", tags=["agora"])
 
 
 @router.post("/book")
-async def book(*, current_user: CurrentUser):
+async def book(*, request: Request, current_user: CurrentUser):
     """
     Book user's slots on Agora.
     """
@@ -25,9 +26,18 @@ async def book(*, current_user: CurrentUser):
             detail="No slots to reserve for current user.",
         )
 
-    run = await book_agora(dates=current_user.agora_slots)
-    current_user.agora_runs.append(run)
-    await current_user.save()
+    semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
+    async with semaphore:
+        run = await book_agora(dates=current_user.agora_slots, headless=True)
+        current_user.agora_runs.append(run)
+        current_user.remove_slots(
+            [s.slot for s in run.slots if s.result is AgoraResult.success]
+        )
+        await current_user.save()
+
+    return RedirectResponse(
+        url=request.url_for("runs"), status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.get("/runs")
@@ -63,8 +73,10 @@ async def agora_settings_page(
 
 @router.post("/settings")
 async def update_agora_settings(
-    userUpdate: Annotated[UserAgoraUpdate, Form()], current_user: CurrentUser
-) -> User:
+    userUpdate: Annotated[UserAgoraUpdate, Form()],
+    request: Request,
+    current_user: CurrentUser,
+) -> RedirectResponse:
     """
     Book a slot on agora.
     """
@@ -76,4 +88,6 @@ async def update_agora_settings(
     if user_data:
         await current_user.update(**user_data)
 
-    return current_user
+    return RedirectResponse(
+        url=request.url_for("agora_settings_page"), status_code=status.HTTP_303_SEE_OTHER
+    )

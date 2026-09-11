@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import date, datetime
 from enum import Enum
 from typing import Annotated, TypeVar
@@ -95,6 +96,16 @@ class User(JsonModel, index=True):  # type: ignore
     agora_slots: list[date] | None = Field(default=None, index=False)
     agora_runs: list[AgoraRun] = Field(default_factory=list, index=False)
 
+    def remove_slots(self, dates: Iterable[date]):
+        if self.agora_slots is not None:
+            for d in dates:
+                try:
+                    self.agora_slots.remove(d)
+                except ValueError:
+                    continue
+            if len(self.agora_slots) == 0:
+                self.agora_slots = None
+
     class Meta:
         global_key_prefix = settings.REDIS_PREFIX
         model_key_prefix = "user"
@@ -123,7 +134,7 @@ class UserUpdate(BaseModel):
 
 def parse_date_list(value: str | list[str] | list[date] | None) -> list[date] | None:
     if isinstance(value, str):
-        return [datetime.strptime(v, "%d/%m/%Y") for v in value.split(",")]
+        return [datetime.strptime(v.strip(), "%d/%m/%Y").date() for v in value.split(",")]
     if isinstance(value, list):
         result = []
         for v in value:
