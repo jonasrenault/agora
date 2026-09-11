@@ -1,5 +1,4 @@
 import io
-import locale
 import logging
 from base64 import b64encode
 from datetime import date, datetime
@@ -23,12 +22,31 @@ TIMEOUT_5S = 5000
 STORAGE_STATE_FILE = "storage_state.json"
 SESSION_STORAGE_FILE = "session.json"
 
+FRENCH_MONTHS = {
+    1: "janvier",
+    2: "février",
+    3: "mars",
+    4: "avril",
+    5: "mai",
+    6: "juin",
+    7: "juillet",
+    8: "août",
+    9: "septembre",
+    10: "octobre",
+    11: "novembre",
+    12: "décembre",
+}
+
 
 class SlotColor(str, Enum):
     red = "red"
     green = "green"
     yellow = "yellow"
     white = "white"
+
+
+def _full_month_french(date: date) -> str:
+    return FRENCH_MONTHS[date.month]
 
 
 async def _log_page(page: Page, save_dir: Path, show: bool = False):
@@ -178,7 +196,7 @@ async def _select_date(
     LOGGER.info(f"Selecting date {date}")
     await page.locator("#date-selector").click(timeout=TIMEOUT_5S)
 
-    target_month = date.strftime("%B")  # e.g., "août"
+    target_month = _full_month_french(date).lower()  # e.g., "août"
     LOGGER.debug(f"Selecting target month {target_month}")
     while not (
         await page.locator(".mdp-calendar-monthyear").text_content(timeout=TIMEOUT_1S)
@@ -343,14 +361,10 @@ async def book_agora(
     ],
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
-    locale_code: str = "fr_FR",
     dry_run: bool = True,
 ) -> AgoraRun:
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
-
-    # Set the locale for date formatting
-    locale.setlocale(locale.LC_ALL, locale_code)
 
     # Add stream handler to logger
     log_stream = io.StringIO()
