@@ -28,7 +28,7 @@ async def book(*, request: Request, current_user: CurrentUser):
 
     semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
     async with semaphore:
-        run = await book_agora(dates=current_user.agora_slots, headless=True)
+        run = await book_agora(dates=current_user.agora_slots, headless=False)
         current_user.agora_runs.append(run)
         current_user.remove_slots(
             [s.slot for s in run.slots if s.result is AgoraResult.success]
