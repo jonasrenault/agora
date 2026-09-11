@@ -38,8 +38,8 @@ class AgoraSlot(BaseModel):
     slot: date
     result: AgoraResult | None = None
 
+    @computed_field  # type: ignore[misc]
     @property
-    @computed_field
     def result_class(self) -> str:
         if self.result is AgoraResult.success:
             return "success"
@@ -51,8 +51,8 @@ class AgoraSlot(BaseModel):
             return "error"
         return "warning"
 
+    @computed_field  # type: ignore[misc]
     @property
-    @computed_field
     def result_tooltip(self) -> str:
         if self.result is AgoraResult.success:
             return "Booked successfully"

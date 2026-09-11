@@ -15,7 +15,7 @@
 
             <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Automation Runs</li>
 
-            {% for run in runs %}
+            {% for run in runs | sort(attribute='finished_at', reverse=true) %}
             <li class="list-row">
                 <div
                     class="card {{ 'bg-error' if run.error  else 'bg-base-300'}} card-border shadow-xs text-primary-content list-col-grow">
