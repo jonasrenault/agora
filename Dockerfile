@@ -15,7 +15,7 @@ ENV UV_NO_DEV=1
 WORKDIR /app
 
 # Install dependencies
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project
@@ -24,7 +24,7 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
 COPY . /app
 
 # Sync the project
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv,target=/root/.cache/uv \
     uv sync --locked
 
 ENV PATH="/app/.venv/bin:$PATH"
