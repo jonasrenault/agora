@@ -3,7 +3,8 @@ FROM python:3.12-slim-trixie
 COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /uvx /bin/
 
 # Install Playwright browsers and system dependencies
-RUN uvx patchright install --with-deps chromium
+# version here must match the one in pyproject.toml to ensure browser versions match
+RUN uvx patchright@1.61.2 install --with-deps chromium
 
 # Compile bytecode
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#compiling-bytecode
