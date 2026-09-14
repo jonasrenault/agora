@@ -23,3 +23,18 @@ services:
       - dev
       - --host
       - "0.0.0.0"
+
+  redis:
+    image: redis:latest
+    container_name: my-redis
+    ports:
+        - '6379:6379'
+    volumes:
+        - redis-data:/data
+    environment:
+        - REDIS_ARGS=--appendonly yes
+    restart: unless-stopped
+
+volumes:
+    redis-data:
+        driver: local
