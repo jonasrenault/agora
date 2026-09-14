@@ -1,0 +1,25 @@
+services:
+
+  agora:
+    env_file:
+      - .env
+    ports:
+      - "80:8000"
+    build:
+      dockerfile: Dockerfile
+    volumes:
+      - ~/.cache:/root/.cache:rw
+    develop:
+      watch:
+        - path: agora
+          action: sync+restart
+          target: /app/agora
+          ignore:
+            - .venv
+        - path: pyproject.toml
+          action: rebuild
+    command:
+      - fastapi
+      - dev
+      - --host
+      - "0.0.0.0"

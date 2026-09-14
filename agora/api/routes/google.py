@@ -1,4 +1,3 @@
-import json
 from typing import Annotated
 
 import requests
@@ -18,12 +17,20 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 API_SERVICE_NAME = "gmail"
 API_VERSION = "v1"
 
-CREDENTIALS_PATH = settings.CREDENTIALS_DIR / settings.CREDENTIALS_FILE_NAME
-TOKEN_PATH = settings.CREDENTIALS_DIR / settings.TOKEN_FILE_NAME
-
-# https://developers.google.com/identity/protocols/oauth2/web-server#example
-# TODO: ajouter les routes clear et revoke depuis l'exemple
-# https://developers.google.com/workspace/gmail/api/auth/web-server
+GOOGLE_OAUTH_CLIENT_CONFIG = {
+    "web": {
+        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+        "project_id": settings.GOOGLE_OAUTH_PROJECT_ID,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+        "redirect_uris": [
+            "http://127.0.0.1:8000/api/v1/google/oauth2callback",
+            "https://agora.fastapicloud.dev/api/v1/google/oauth2callback",
+        ],
+    }
+}
 
 
 @router.get("/authorize")
@@ -38,8 +45,8 @@ def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
         request (Request): The HTTP request object.
     """
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_PATH, scopes=SCOPES, autogenerate_code_verifier=True
+    flow = Flow.from_client_config(
+        GOOGLE_OAUTH_CLIENT_CONFIG, scopes=SCOPES, autogenerate_code_verifier=True
     )
 
     # The URI created here must exactly match one of the authorized redirect URIs
@@ -86,8 +93,8 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
     # verified in the authorization server response.
     state = request.session.get("state")
 
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_PATH,
+    flow = Flow.from_client_config(
+        GOOGLE_OAUTH_CLIENT_CONFIG,
         scopes=SCOPES,
         state=state,
         code_verifier=request.session.get("code_verifier"),
@@ -140,8 +147,7 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
         Credentials: the super user's credentials object.
     """
     # Load client secrets from the server-side file.
-    with open(CREDENTIALS_PATH, "r") as f:
-        client_config = json.load(f)["web"]
+    client_config = GOOGLE_OAUTH_CLIENT_CONFIG["web"]
 
     if (
         admin.token is None and admin.refresh_token is None

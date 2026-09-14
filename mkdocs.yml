@@ -3,9 +3,9 @@ site_description: Réservation automatique de créneaux sur Agora Plus.
 # site_url: https://inria-defense.github.io/vox-audio/
 nav:
     - Home: index.md
-    - FastAPI: fastapi.md
     - Google: google.md
     - Redis: redis.md
+    - Docker: docker.md
 theme:
   name: 'material'
   palette:

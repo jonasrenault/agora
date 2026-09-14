@@ -18,7 +18,7 @@ The application uses [Playwright](https://playwright.dev/python/) / [Patchwright
 
 ```console
 # Install Chromium-Driver for Patchright
-playwright install chromium
+uv run patchright install chromium --with-deps
 ```
 
 ### Configuration
@@ -49,3 +49,10 @@ uv run fastapi dev
 ```
 
 to start the dev server.
+
+The entrypoint for the FastAPI app is defined in `pyproject.toml`:
+
+```toml
+[tool.fastapi]
+entrypoint = "agora.api.main:app"
+```

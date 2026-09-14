@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     ADMIN_AGORA_PASSWORD: str = "changethis"
 
     ################
-    # GOOGLE API SETTINGS
+    # GOOGLE OAUTH API SETTINGS
+    # https://github.com/googleapis/google-api-python-client/blob/main/docs/client-secrets.md
     ################
-    CREDENTIALS_DIR: Path = ROOT_DIR / ".credentials"
-    CREDENTIALS_FILE_NAME: str = "credentials.json"
-    TOKEN_FILE_NAME: str = "token.json"
+    GOOGLE_OAUTH_CLIENT_ID: str = "asdfjasdljfasdkjf"
+    GOOGLE_OAUTH_CLIENT_SECRET: str = "changethis"
+    GOOGLE_OAUTH_PROJECT_ID: str = "agora-098723"

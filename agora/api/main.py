@@ -13,7 +13,6 @@ from agora.api.deps import CurrentUser, OptionalUser
 from agora.api.render import create_context
 from agora.api.routes.routes import api_router
 from agora.config import settings
-from agora.utils import driver_install
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -24,8 +23,6 @@ LOGGER = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Make sure chromium driver is installed
-    driver_install("chromium", "--with-deps")
     await init_db()
     LOGGER.info("[green]✓[/green] Migrations complete.")
     yield
