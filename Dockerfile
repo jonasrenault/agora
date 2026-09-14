@@ -33,4 +33,7 @@ RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["fastapi", "run"]
+# CMD ["fastapi", "run"]
+
+# Run the web service on container startup.
+CMD ["hypercorn", "main:app", "--bind", "::"]
