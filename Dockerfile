@@ -10,14 +10,17 @@ RUN uvx patchright install --with-deps chromium
 ENV UV_COMPILE_BYTECODE=1
 # Disable development dependencies
 ENV UV_NO_DEV=1
+# Enable caching
+ENV UV_LINK_MODE=copy
 
 # Change the working directory to the `app` directory
 WORKDIR /app
 
+# Copy dependency files first (for layer caching)
+COPY pyproject.toml uv.lock ./
+
 # Install dependencies
 RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project
 
 # Copy the project into the image
