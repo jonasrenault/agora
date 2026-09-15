@@ -23,7 +23,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
-    { name = "fastapi-cloud-cli" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
     { name = "google-auth-oauthlib" },
@@ -62,7 +61,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
-    { name = "fastapi-cloud-cli", specifier = ">=0.25.0" },
     { name = "google-api-python-client", specifier = ">=2.200.0" },
     { name = "google-auth-httplib2", specifier = ">=0.4.2" },
     { name = "google-auth-oauthlib", specifier = ">=1.4.1" },
