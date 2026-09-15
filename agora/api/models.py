@@ -177,3 +177,8 @@ class UsersResponse(BaseModel):
     data: list[UserResponse]
     count: int
     page: int
+
+
+class AgoraCreate(BaseModel):
+    headless: bool = False
+    dry_run: bool = False

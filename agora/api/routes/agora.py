@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import AgoraResult, UserAgoraUpdate
+from agora.api.models import AgoraCreate, AgoraResult, UserAgoraUpdate
 from agora.api.render import create_context
 from agora.config import settings
 from agora.crypto import encrypt
@@ -16,7 +16,11 @@ router = APIRouter(prefix="/agora", tags=["agora"])
 
 
 @router.post("/book")
-async def book(*, request: Request, current_user: CurrentUser):
+async def book(
+    agora_params: Annotated[AgoraCreate, Form()],
+    request: Request,
+    current_user: CurrentUser,
+):
     """
     Book user's slots on Agora.
     """
@@ -28,7 +32,11 @@ async def book(*, request: Request, current_user: CurrentUser):
 
     semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
     async with semaphore:
-        run = await book_agora(dates=current_user.agora_slots, headless=True)
+        run = await book_agora(
+            dates=current_user.agora_slots,
+            headless=agora_params.headless,
+            dry_run=agora_params.dry_run,
+        )
         current_user.agora_runs.append(run)
         current_user.remove_slots(
             [s.slot for s in run.slots if s.result is AgoraResult.success]

@@ -7,6 +7,18 @@
     <h1 class="text-center text-xl font-bold mb-5">Agora Portal Automation Runs</h1>
 
     <form class="mb-5 self-start mx-6" method="POST" action="{{ url_for('book') }}">
+        <fieldset class="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
+            <legend class="fieldset-legend">Run options</legend>
+            <label class="label">
+                <input type="checkbox" checked="checked" value="True" class="checkbox checkbox-sm" name="headless" />
+                Headless
+            </label>
+            <label class="label">
+                <input type="checkbox" checked="checked" value="True" class="checkbox checkbox-sm" name="dry_run" />
+                Dry Run
+            </label>
+        </fieldset>
+
         <button type="submit" class="btn btn-primary w-full mt-2">Run Automation</button>
     </form>
 
