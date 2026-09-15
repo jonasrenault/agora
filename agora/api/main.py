@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
@@ -28,7 +29,14 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    lifespan=lifespan,
+    openapi_url="/openapi.json" if settings.FASTAPI_ENV == "development" else None,
+)
+
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+
 
 # we need this middleware to save temporary code & state in session
 # for OAuth2 flow
