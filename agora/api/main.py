@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from rich.logging import RichHandler
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -48,6 +49,9 @@ app.add_middleware(
     same_site="lax",  # Session needs to persist between callbacks to google servers
     https_only=settings.FASTAPI_ENV != "development",  # Recommended for production
 )
+
+# Static files
+app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)

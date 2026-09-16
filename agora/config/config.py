@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     PROJECT_NAME: str = "Agora API"
     TEMPLATES_DIR: Path = ROOT_DIR / "templates"
+    STATIC_DIR: Path = ROOT_DIR / "static"
 
     ################
     # DEFAULT ADMIN SETTINGS
