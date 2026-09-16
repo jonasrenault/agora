@@ -13,3 +13,7 @@ docker compose watch
 to start the application.
 
 The docker compose file also includes a redis service. Change the value of `REDIS_URL` in the `.env` file to `redis://redis:6379` to use the local redis instance instead of redis cloud.
+
+## Docker build
+
+A deploy workflow builds the docker image using the `Dockerfile` and pushes it to Github Container Registry. The workflow runs whenever news commits are pushed to the main branch.
