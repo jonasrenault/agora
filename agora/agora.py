@@ -1,7 +1,7 @@
 import io
 import logging
 from base64 import b64encode
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -287,12 +287,12 @@ async def _get_context(browser: Browser, save_dir: Path) -> BrowserContext:
     """
     storage_state_path = save_dir / STORAGE_STATE_FILE
     if storage_state_path.exists():
-        LOGGER.info(f"Loading storage state from {storage_state_path}")
+        LOGGER.debug(f"Loading storage state from {storage_state_path}")
         context = await browser.new_context(storage_state=storage_state_path)
 
         session_storage_path = save_dir / SESSION_STORAGE_FILE
         if session_storage_path.exists():
-            LOGGER.info(f"Loading session storage from {session_storage_path}")
+            LOGGER.debug(f"Loading session storage from {session_storage_path}")
             with open(session_storage_path, "r") as f:
                 session_storage = f.read()
             await context.add_init_script("""(storage => {
@@ -302,7 +302,7 @@ for (const [key, value] of Object.entries(entries)) {
 }
 })('""" + session_storage + "')")
     else:
-        LOGGER.info(
+        LOGGER.debug(
             f"No storage state found at {storage_state_path}. Creating new context."
         )
         context = await browser.new_context()
@@ -391,7 +391,7 @@ async def book_agora(
         )
         run.error = True
     finally:
-        run.finished_at = datetime.now()
+        run.finished_at = datetime.now(timezone.utc)
         LOGGER.removeHandler(handler)
         run.logs = log_stream.getvalue()
         run.screenshot = _get_screenshot_base64(save_dir)

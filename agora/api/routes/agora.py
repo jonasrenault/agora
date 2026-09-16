@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, Request, status
+from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from agora.agora import book_agora
@@ -20,6 +20,7 @@ async def book(
     agora_params: Annotated[AgoraCreate, Form()],
     request: Request,
     current_user: CurrentUser,
+    hx_request: Annotated[str | None, Header()] = None,
 ):
     """
     Book user's slots on Agora.
@@ -43,18 +44,31 @@ async def book(
         )
         await current_user.save()
 
-    return RedirectResponse(
-        url=request.url_for("runs"), status_code=status.HTTP_303_SEE_OTHER
-    )
+    if hx_request:
+        context = create_context(current_user)
+        context["runs"] = current_user.agora_runs
+        return templates.TemplateResponse(
+            request=request, name="components/_runs.html", context=context
+        )
+
+    return current_user
 
 
 @router.get("/runs")
-async def runs(request: Request, current_user: CurrentUser) -> HTMLResponse:
+async def runs(
+    request: Request,
+    current_user: CurrentUser,
+    hx_request: Annotated[str | None, Header()] = None,
+) -> HTMLResponse:
     """
     Page to list Agora Runs
     """
     context = create_context(current_user)
     context["runs"] = current_user.agora_runs
+    if hx_request:
+        return templates.TemplateResponse(
+            request=request, name="components/_runs.html", context=context
+        )
     return templates.TemplateResponse(
         request=request, name="pages/agora_runs.html", context=context
     )

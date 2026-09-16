@@ -1,0 +1,16 @@
+/* Hide htmx spinner by default */
+.htmx-indicator {
+  display: none;
+}
+
+/* Show spinner when htmx-request class is on the form or button */
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  display: inline-block;
+}
+
+/* Disable button to prevent double submission */
+.htmx-request button, button.htmx-request {
+    opacity: 0.5;
+    pointer-events: none;
+}
