@@ -1,13 +1,13 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, Request, status
+from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import AgoraResult, UserAgoraUpdate
+from agora.api.models import AgoraCreate, AgoraResult, UserAgoraUpdate
 from agora.api.render import create_context
 from agora.config import settings
 from agora.crypto import encrypt
@@ -16,7 +16,12 @@ router = APIRouter(prefix="/agora", tags=["agora"])
 
 
 @router.post("/book")
-async def book(*, request: Request, current_user: CurrentUser):
+async def book(
+    agora_params: Annotated[AgoraCreate, Form()],
+    request: Request,
+    current_user: CurrentUser,
+    hx_request: Annotated[str | None, Header()] = None,
+):
     """
     Book user's slots on Agora.
     """
@@ -28,25 +33,42 @@ async def book(*, request: Request, current_user: CurrentUser):
 
     semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
     async with semaphore:
-        run = await book_agora(dates=current_user.agora_slots, headless=True)
+        run = await book_agora(
+            dates=current_user.agora_slots,
+            headless=agora_params.headless,
+            dry_run=agora_params.dry_run,
+        )
         current_user.agora_runs.append(run)
         current_user.remove_slots(
             [s.slot for s in run.slots if s.result is AgoraResult.success]
         )
         await current_user.save()
 
-    return RedirectResponse(
-        url=request.url_for("runs"), status_code=status.HTTP_303_SEE_OTHER
-    )
+    if hx_request:
+        context = create_context(current_user)
+        context["runs"] = current_user.agora_runs
+        return templates.TemplateResponse(
+            request=request, name="components/_runs.html", context=context
+        )
+
+    return current_user
 
 
 @router.get("/runs")
-async def runs(request: Request, current_user: CurrentUser) -> HTMLResponse:
+async def runs(
+    request: Request,
+    current_user: CurrentUser,
+    hx_request: Annotated[str | None, Header()] = None,
+) -> HTMLResponse:
     """
     Page to list Agora Runs
     """
     context = create_context(current_user)
     context["runs"] = current_user.agora_runs
+    if hx_request:
+        return templates.TemplateResponse(
+            request=request, name="components/_runs.html", context=context
+        )
     return templates.TemplateResponse(
         request=request, name="pages/agora_runs.html", context=context
     )

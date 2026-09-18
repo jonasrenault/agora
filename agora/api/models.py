@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Annotated, TypeVar
 
@@ -68,8 +68,8 @@ class AgoraSlot(BaseModel):
 
 class AgoraRun(EmbeddedJsonModel):
 
-    started_at: datetime = Field(default_factory=datetime.now)
-    finished_at: datetime = Field(default_factory=datetime.now)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     slots: list[AgoraSlot] = Field(default_factory=list)
 
     error: bool = Field(default=False)
@@ -83,7 +83,9 @@ class User(JsonModel, index=True):  # type: ignore
     is_active: bool = Field(default=True, index=True)
     is_superuser: bool = Field(default=False, index=True)
     hashed_password: str = Field(index=False)
-    created_at: datetime = Field(default_factory=datetime.now, index=True, sortable=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), index=True, sortable=True
+    )
 
     # Google Credentials
     token: str | None = Field(default=None, index=False)
@@ -177,3 +179,8 @@ class UsersResponse(BaseModel):
     data: list[UserResponse]
     count: int
     page: int
+
+
+class AgoraCreate(BaseModel):
+    headless: bool = False
+    dry_run: bool = False

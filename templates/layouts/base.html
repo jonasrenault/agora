@@ -7,17 +7,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- DaisyUI and Tailwind CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="{{ asset('css/daisyui@5.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ asset('css/daisyui_themes.css') }}" rel="stylesheet" type="text/css">
+    <script src="{{ asset('css/tailwindcss@4') }}"></script>
+    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
 
-    <!-- htmx -->
-    <!-- <script src="https://unpkg.com/htmx.org@2.0.4"></script> -->
 </head>
 
 <body>
     {% block content %}{% endblock %}
 
+    <script defer src="{{ asset('js/vendor/htmx.min.js') }}"></script>
 </body>
 
 </html>

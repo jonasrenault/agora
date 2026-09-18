@@ -1,0 +1,52 @@
+<li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Automation Runs</li>
+
+{% for run in runs | sort(attribute='finished_at', reverse=true) %}
+<li class="list-row">
+    <div
+        class="card {{ 'bg-error' if run.error  else 'bg-base-300'}} card-border shadow-xs text-primary-content list-col-grow">
+        <div class="card-body">
+            <div class="card-title flex">
+                <h2 class="flex-1">{{ run.started_at.strftime('%d-%m-%Y %H:%M:%S') }}</h2>
+                <h2>{{ '{:.0f}s'.format((run.finished_at - run.started_at).total_seconds()) }}</h2>
+            </div>
+
+            <div class="mb-2">
+                {% for slot in run.slots %}
+                <div class="tooltip {{ 'tooltip-' + slot.result_class }}">
+                    <div class="tooltip-content">
+                        <div class="">{{ slot.result_tooltip }}</div>
+                    </div>
+                    <div class="badge badge-md {{ 'badge-' + slot.result_class }}">{{
+                        slot.slot.strftime('%d-%m-%Y') }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="collapse bg-base-100 border border-base-100">
+                <input type="checkbox" />
+                <div class="collapse-title font-semibold">Logs</div>
+                <div class="collapse-content text-sm">
+                    <div class="max-h-96 overflow-y-auto">
+                        {% for line in run.logs.splitlines() %}
+                        <p>{{ line }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            {% if run.screenshot is not none %}
+
+            <div class="collapse bg-base-100 border border-base-100">
+                <input type="checkbox" />
+                <div class="collapse-title font-semibold">Screenshot</div>
+                <div class="collapse-content text-sm">
+                    <img class="max-h-96" src="data:image/png;base64,{{ run.screenshot }}" alt="Screenshot">
+                </div>
+            </div>
+
+            {% endif %}
+        </div>
+    </div>
+</li>
+{% endfor %}

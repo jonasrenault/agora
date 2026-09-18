@@ -38,6 +38,10 @@ SECRET_KEY=3e9429d6b2e7f3c576e74c428edd6677952328bb9bbd9516edc300c236bae3d3
 
 REDIS_URL="redis://default:*******@obedient-crack-pie-redis.io:18976"
 REDIS_RESET_ON_STARTUP=False
+
+GOOGLE_OAUTH_CLIENT_ID=********
+GOOGLE_OAUTH_CLIENT_SECRET=********
+GOOGLE_OAUTH_PROJECT_ID=********
 ```
 
 ## FastAPI
