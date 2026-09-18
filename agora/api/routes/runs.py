@@ -4,49 +4,36 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from agora.agora import book_agora
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import AgoraCreate, AgoraResult, UserAgoraUpdate
+from agora.api.models import AgoraCreate, SlotAutomationResult, User, UserAgoraUpdate
 from agora.api.render import create_context
+from agora.automation import book_dates
 from agora.config import settings
-from agora.crypto import encrypt
+from agora.crypto import decrypt, encrypt
 
-router = APIRouter(prefix="/agora", tags=["agora"])
+router = APIRouter(prefix="/runs", tags=["runs"])
 
 
-@router.post("/book")
-async def book(
+@router.post("/")
+async def run_automation(
     agora_params: Annotated[AgoraCreate, Form()],
     request: Request,
     current_user: CurrentUser,
     hx_request: Annotated[str | None, Header()] = None,
 ):
     """
-    Book user's slots on Agora.
+    Run automation to book user's slots on Agora.
     """
-    if not current_user.agora_slots:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="No slots to reserve for current user.",
-        )
-
     semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
     async with semaphore:
-        run = await book_agora(
-            dates=current_user.agora_slots,
-            headless=agora_params.headless,
-            dry_run=agora_params.dry_run,
+        await run_automation_for_user(
+            current_user, agora_params.headless, agora_params.dry_run
         )
-        current_user.agora_runs.append(run)
-        current_user.remove_slots(
-            [s.slot for s in run.slots if s.result is AgoraResult.success]
-        )
-        await current_user.save()
 
     if hx_request:
         context = create_context(current_user)
-        context["runs"] = current_user.agora_runs
+        context["runs"] = current_user.automation_runs
         return templates.TemplateResponse(
             request=request, name="components/_runs.html", context=context
         )
@@ -54,7 +41,35 @@ async def book(
     return current_user
 
 
-@router.get("/runs")
+async def run_automation_for_user(current_user: User, headless: bool, dry_run: bool):
+    if not current_user.agora_slots:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No slots to reserve for current user.",
+        )
+
+    if not current_user.agora_password or not current_user.agora_email:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Undefined Agora email or password for current user.",
+        )
+
+    agora_password = decrypt(current_user.agora_password, settings.SECRET_KEY)
+    run = await book_dates(
+        email=current_user.agora_email,
+        pwd=agora_password,
+        dates=current_user.agora_slots,
+        headless=headless,
+        dry_run=dry_run,
+    )
+    current_user.automation_runs.append(run)
+    current_user.remove_slots(
+        [s.slot for s in run.slots if s.result is SlotAutomationResult.success]
+    )
+    await current_user.save()
+
+
+@router.get("/")
 async def runs(
     request: Request,
     current_user: CurrentUser,
@@ -64,7 +79,7 @@ async def runs(
     Page to list Agora Runs
     """
     context = create_context(current_user)
-    context["runs"] = current_user.agora_runs
+    context["runs"] = current_user.automation_runs
     if hx_request:
         return templates.TemplateResponse(
             request=request, name="components/_runs.html", context=context
@@ -100,7 +115,7 @@ async def update_agora_settings(
     current_user: CurrentUser,
 ) -> RedirectResponse:
     """
-    Book a slot on agora.
+    Update current user's agora settings (slots, email, password).
     """
     user_data = userUpdate.model_dump(exclude_unset=True, exclude_none=True)
     if "agora_password" in user_data:

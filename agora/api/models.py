@@ -26,7 +26,7 @@ class EncryptedValue(BaseModel):
     ciphertext: str
 
 
-class AgoraResult(str, Enum):
+class SlotAutomationResult(str, Enum):
     success = "success"  # slot was successfully reserved
     alert = "alert"  # slot was full, an alert was created instead
     already_booked = "already_booked"  # slot was already booked
@@ -37,37 +37,36 @@ class AgoraResult(str, Enum):
 
 class AgoraSlot(BaseModel):
     slot: date
-    result: AgoraResult | None = None
+    result: SlotAutomationResult | None = None
 
     @computed_field  # type: ignore[misc]
     @property
     def result_class(self) -> str:
-        if self.result is AgoraResult.success:
+        if self.result is SlotAutomationResult.success:
             return "success"
-        if self.result is AgoraResult.alert:
+        if self.result is SlotAutomationResult.alert:
             return "info"
-        if self.result is AgoraResult.already_booked:
+        if self.result is SlotAutomationResult.already_booked:
             return "secondary"
-        if self.result is AgoraResult.unavailable:
+        if self.result is SlotAutomationResult.unavailable:
             return "error"
         return "warning"
 
     @computed_field  # type: ignore[misc]
     @property
     def result_tooltip(self) -> str:
-        if self.result is AgoraResult.success:
+        if self.result is SlotAutomationResult.success:
             return "Booked successfully"
-        if self.result is AgoraResult.alert:
+        if self.result is SlotAutomationResult.alert:
             return "Alert created"
-        if self.result is AgoraResult.already_booked:
+        if self.result is SlotAutomationResult.already_booked:
             return "Slot was already booked"
-        if self.result is AgoraResult.unavailable:
+        if self.result is SlotAutomationResult.unavailable:
             return "Slot was full"
         return "Unable to book slot"
 
 
-class AgoraRun(EmbeddedJsonModel):
-
+class AutomationRun(EmbeddedJsonModel):
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     slots: list[AgoraSlot] = Field(default_factory=list)
@@ -96,7 +95,7 @@ class User(JsonModel, index=True):  # type: ignore
     agora_email: EmailStr | None = Field(default=None, index=False)
     agora_password: EncryptedValue | None = Field(default=None, index=False)
     agora_slots: list[date] | None = Field(default=None, index=False)
-    agora_runs: list[AgoraRun] = Field(default_factory=list, index=False)
+    automation_runs: list[AutomationRun] = Field(default_factory=list, index=False)
 
     def remove_slots(self, dates: Iterable[date]):
         if self.agora_slots is not None:
