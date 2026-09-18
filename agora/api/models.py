@@ -90,6 +90,8 @@ class User(JsonModel, index=True):  # type: ignore
     token: str | None = Field(default=None, index=False)
     refresh_token: str | None = Field(default=None, index=False)
     granted_scopes: list[str] | None = Field(default=None, index=False)
+    google_api_email: EmailStr | None = Field(default=None, index=True)
+    google_api_history_id: str | None = Field(default=None, index=False)
 
     # Agora
     agora_email: EmailStr | None = Field(default=None, index=False)

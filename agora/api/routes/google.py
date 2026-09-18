@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -6,16 +6,13 @@ from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient import errors as google_api_errors
-from googleapiclient.discovery import build
 
 from agora.api.deps import CurrentSuperUser
 from agora.config import settings
+from agora.google_api import SCOPES, check_and_store_user_credentials, list_messages
 
 router = APIRouter(prefix="/google", tags=["google"])
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
-API_SERVICE_NAME = "gmail"
-API_VERSION = "v1"
 
 GOOGLE_OAUTH_CLIENT_CONFIG = {
     "web": {
@@ -110,27 +107,10 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
     flow.fetch_token(authorization_response=authorization_response)
 
     # Store credentials in DB
-    credentials = flow.credentials
-    check_granted_scopes(credentials)
-    await admin.update(**credentials_to_dict(credentials))
+    credentials = cast(Credentials, flow.credentials)
+    await check_and_store_user_credentials(credentials, admin)
 
     return RedirectResponse(url=request.url_for("gmail_list_messages"))
-
-
-def check_granted_scopes(credentials) -> None:
-    for scope in SCOPES:
-        if scope not in credentials.granted_scopes:
-            raise HTTPException(
-                status_code=400, detail=f"Missing required scope: {scope}"
-            )
-
-
-def credentials_to_dict(credentials) -> dict[str, str | list[str]]:
-    return {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "granted_scopes": credentials.granted_scopes,
-    }
 
 
 def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:
@@ -198,31 +178,9 @@ async def revoke(credentials: SuperUserCredentials, request: Request) -> Redirec
 
 
 @router.get("/list")
-def gmail_list_messages(
-    credentials: SuperUserCredentials, request: Request, query: str = ""
-):
+def gmail_list_messages(credentials: SuperUserCredentials, query: str = ""):
     try:
-        service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-        results = (
-            service.users()
-            .messages()
-            .list(userId="me", labelIds=["INBOX"], q=query)
-            .execute()
-        )
-        messages = []
-        messages.extend(results.get("messages", []))
-
-        while "nextPageToken" in results:
-            page_token = results["nextPageToken"]
-            results = (
-                service.users()
-                .messages()
-                .list(userId="me", labelIds=["INBOX"], q=query, pageToken=page_token)
-                .execute()
-            )
-            messages.extend(results.get("messages", []))
-
-        return messages
+        return list_messages(credentials, query)
     except google_api_errors.HttpError as e:
         raise HTTPException(
             status_code=500,
