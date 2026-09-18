@@ -74,7 +74,7 @@
             </ul>
         </details>
     </li>
-    {% if user.is_linked %}
+
     <li>
         <details open>
             <summary>
@@ -102,6 +102,7 @@
                 Gmail API
             </summary>
             <ul>
+                {% if user.is_linked %}
                 <li>
                     <a href="/api/v1/google/list">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -113,23 +114,6 @@
                         <span>List Messages</span>
                     </a>
                 </li>
-            </ul>
-        </details>
-    </li>
-    {% endif %}
-    <li>
-        <details open>
-            <summary>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                    stroke="currentColor" aria-hidden="true" class="h-5 w-5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z">
-                    </path>
-                </svg>
-                Account
-            </summary>
-            <ul>
-                {% if user.is_linked %}
                 <li>
                     <a href="/api/v1/google/clear">
                         <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
@@ -143,7 +127,6 @@
                         <span>Clear Google Credentials</span>
                     </a>
                 </li>
-
                 <li>
                     <a href="/api/v1/google/revoke">
                         <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] overflow-visible"
@@ -198,21 +181,22 @@
                     </a>
                 </li>
                 {% endif %}
-                <li>
-                    <a href="/api/v1/logout">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
-                            viewBox="0 0 64 64" aria-hidden="true">
-                            <path fill-rule="evenodd"
-                                d="M14.6 6.688c-7.29 0-13.2 5.862-13.2 13.092V41.6c0 7.23 5.91 13.092 13.2 13.092h24.2a2.2 2.182 0 1 0 0-4.364H14.6A8.8 8.728 0 0 1 5.8 41.6V24.144h52.8v7.637a2.2 2.182 0 1 0 4.4 0V19.78c0-7.23-5.91-13.092-13.2-13.092zm44 13.092H5.8a8.8 8.728 0 0 1 8.8-8.728h35.2a8.8 8.728 0 0 1 8.8 8.728"
-                                clip-rule="evenodd" data-original="#000000" />
-                            <path
-                                d="M63 45.964a8.8 8.728 0 0 0-8.8-8.728H38.8a2.2 2.182 0 1 0 0 4.364h15.4a4.4 4.364 0 0 1 0 8.728h-1.84l.645-.64a2.2 2.182 0 1 0-3.11-3.085l-4.4 4.364a2.2 2.182 0 0 0 0 3.085l4.4 4.364a2.2 2.182 0 1 0 3.11-3.085l-.644-.64H54.2a8.8 8.728 0 0 0 8.8-8.727M12.4 28.508a2.2 2.182 0 1 0 0 4.364h8.8a2.2 2.182 0 1 0 0-4.364z"
-                                data-original="#000000" />
-                        </svg>
-                        Logout
-                    </a>
-                </li>
             </ul>
         </details>
+    </li>
+
+    <li>
+        <a href="/api/v1/logout">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
+                viewBox="0 0 64 64" aria-hidden="true">
+                <path fill-rule="evenodd"
+                    d="M14.6 6.688c-7.29 0-13.2 5.862-13.2 13.092V41.6c0 7.23 5.91 13.092 13.2 13.092h24.2a2.2 2.182 0 1 0 0-4.364H14.6A8.8 8.728 0 0 1 5.8 41.6V24.144h52.8v7.637a2.2 2.182 0 1 0 4.4 0V19.78c0-7.23-5.91-13.092-13.2-13.092zm44 13.092H5.8a8.8 8.728 0 0 1 8.8-8.728h35.2a8.8 8.728 0 0 1 8.8 8.728"
+                    clip-rule="evenodd" data-original="#000000" />
+                <path
+                    d="M63 45.964a8.8 8.728 0 0 0-8.8-8.728H38.8a2.2 2.182 0 1 0 0 4.364h15.4a4.4 4.364 0 0 1 0 8.728h-1.84l.645-.64a2.2 2.182 0 1 0-3.11-3.085l-4.4 4.364a2.2 2.182 0 0 0 0 3.085l4.4 4.364a2.2 2.182 0 1 0 3.11-3.085l-.644-.64H54.2a8.8 8.728 0 0 0 8.8-8.727M12.4 28.508a2.2 2.182 0 1 0 0 4.364h8.8a2.2 2.182 0 1 0 0-4.364z"
+                    data-original="#000000" />
+            </svg>
+            Logout
+        </a>
     </li>
 </ul>

@@ -1,0 +1,17 @@
+<li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Messages</li>
+
+{% for message in messages %}
+<li class="list-row">
+    <div class="card card-sm bg-base-300 card-border shadow-xs list-col-grow">
+        <div class="card-body">
+            <div class="card-title">
+                <h2 class="text-sm text-neutral">{{ message.sender }}: {{ message.subject}}</h2>
+            </div>
+
+            <div class="mb-2 text-sm">
+                {{message.snippet}}
+            </div>
+        </div>
+    </div>
+</li>
+{% endfor %}

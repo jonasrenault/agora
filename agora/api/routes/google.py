@@ -1,13 +1,15 @@
 from typing import Annotated, cast
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient import errors as google_api_errors
 
+from agora.api import templates
 from agora.api.deps import CurrentSuperUser
+from agora.api.render import create_context
 from agora.config import settings
 from agora.google_api import SCOPES, check_and_store_user_credentials, list_messages
 
@@ -158,10 +160,13 @@ SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
 
 
 @router.get("/clear")
-async def clear_credentials(admin: CurrentSuperUser) -> RedirectResponse:
+async def clear_credentials(
+    admin: CurrentSuperUser, revoke: bool = False
+) -> RedirectResponse:
     admin.granted_scopes = None
     admin.token = None
-    admin.refresh_token = None
+    if revoke:
+        admin.refresh_token = None
     await admin.update()
     return RedirectResponse(url="/")
 
@@ -174,15 +179,33 @@ async def revoke(credentials: SuperUserCredentials, request: Request) -> Redirec
         headers={"content-type": "application/x-www-form-urlencoded"},
     )
     r.raise_for_status()
-    return RedirectResponse(url=request.url_for("clear_credentials"))
+    return RedirectResponse(
+        url=request.url_for("clear_credentials").include_query_params(revoke=True)
+    )
 
 
 @router.get("/list")
-def gmail_list_messages(credentials: SuperUserCredentials, query: str = ""):
+def gmail_list_messages(
+    request: Request,
+    current_user: CurrentSuperUser,
+    credentials: SuperUserCredentials,
+    hx_request: Annotated[str | None, Header()] = None,
+    query: str = "",
+):
     try:
-        return list_messages(credentials, query)
+        messages = list_messages(credentials, query)
     except google_api_errors.HttpError as e:
         raise HTTPException(
             status_code=500,
             detail=f"An error occured with google's API: {e}",
         )
+
+    context = create_context(current_user)
+    context["messages"] = messages
+    if hx_request:
+        return templates.TemplateResponse(
+            request=request, name="components/_messages.html", context=context
+        )
+    return templates.TemplateResponse(
+        request=request, name="pages/gmail_messages.html", context=context
+    )

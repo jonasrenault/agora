@@ -34,11 +34,16 @@ async def check_and_store_user_credentials(credentials: Credentials, user: User)
     # Store credentials in user model
     update_data = {
         "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
         "granted_scopes": credentials.granted_scopes,
         "google_api_email": result.get("emailAddress", None),
         "google_api_history_id": result.get("historyId", None),
     }
+
+    # Refresh token is only provided by Google on the first authorization.
+    # Don't erase it when user has already authorized the app and refresh token is
+    # not provided by Google.
+    if credentials.refresh_token is not None:
+        update_data["refresh_token"] = credentials.refresh_token
     await user.update(**update_data)
 
 
@@ -91,5 +96,5 @@ def list_messages(credentials: Credentials, query: str):
             elif header["name"] == "From":
                 sender = header["value"]
 
-        messages.append({"Subject": subject, "From": sender, "Snippet": snippet})
+        messages.append({"subject": subject, "sender": sender, "snippet": snippet})
     return messages
