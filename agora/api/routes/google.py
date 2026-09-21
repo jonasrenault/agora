@@ -1,7 +1,16 @@
+from datetime import datetime, timezone
 from typing import Annotated, cast
 
 import requests
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    status,
+)
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -9,13 +18,14 @@ from googleapiclient import errors as google_api_errors
 
 from agora.api import templates
 from agora.api.deps import CurrentSuperUser
-from agora.api.models import GooglePubSubPayload
+from agora.api.models import GooglePubSubData, GooglePubSubMessage, GooglePubSubPayload
 from agora.api.render import create_context
 from agora.config import settings
 from agora.google_api import (
     GOOGLE_OAUTH_CLIENT_CONFIG,
     SCOPES,
     check_and_store_user_credentials,
+    handle_gmail_notification,
     list_messages,
     user_credentials,
 )
@@ -119,9 +129,9 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
     Returns:
         Credentials: the super user's credentials object.
     """
-    if (
-        admin.token is None and admin.refresh_token is None
-    ) or admin.granted_scopes is None:
+    try:
+        credentials = user_credentials(admin)
+    except ValueError:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -129,8 +139,7 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
                 f"Go to {request.url_for('authorize')} to authorize access."
             ),
         )
-
-    return user_credentials(admin)
+    return credentials
 
 
 SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
@@ -189,10 +198,35 @@ def gmail_list_messages(
 
 
 @router.post("/webhook")
-async def gmail_push_webhook(payload: GooglePubSubPayload):
+async def gmail_push_webhook(
+    payload: GooglePubSubPayload, background_tasks: BackgroundTasks
+):
     if payload.subscription == settings.GOOGLE_WEBHOOK_SUBSCRIPTION:
-        # trigger check and run
-        pass
+        background_tasks.add_task(handle_gmail_notification, payload)
 
-    # Always return 200.OK to acknowledge notification
+    # Always return HTTP.200 to acknowledge notification
+    return {"ack": True}
+
+
+@router.post("/test-webhook")
+async def test_gmail_push_webhook(
+    current_user: CurrentSuperUser, background_tasks: BackgroundTasks
+):
+    if not current_user.google_api_email or not current_user.google_api_history_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Missing user gmail address",
+        )
+    data = GooglePubSubData(
+        emailAddress=current_user.google_api_email,
+        historyId=current_user.google_api_history_id,
+    )
+    message = GooglePubSubMessage(
+        data=data, messageId="1234567890", publishTime=datetime.now(timezone.utc)
+    )
+    payload = GooglePubSubPayload(
+        subscription=settings.GOOGLE_WEBHOOK_SUBSCRIPTION, message=message
+    )
+    background_tasks.add_task(handle_gmail_notification, payload)
+
     return {"ack": True}

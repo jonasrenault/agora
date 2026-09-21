@@ -32,6 +32,9 @@ GOOGLE_OAUTH_CLIENT_CONFIG = {
 
 
 def user_credentials(user: User) -> Credentials:
+    if (user.token is None and user.refresh_token is None) or user.granted_scopes is None:
+        raise ValueError("Invalid credentials")
+
     client_config = GOOGLE_OAUTH_CLIENT_CONFIG["web"]
     credentials = Credentials(
         refresh_token=user.refresh_token,
@@ -146,6 +149,9 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
     except NotFoundError:
         LOGGER.error(f"User {payload.message.data.email} not found.", exc_info=True)
         raise NotFoundError(f"User {payload.message.data.email} not found.")
+
+    # udpate user history id
+    await user.update(google_api_history_id=payload.message.data.history_id)
 
     # check if user has agora notification email in inbox
     credentials = user_credentials(user)
