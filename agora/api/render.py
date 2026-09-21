@@ -10,6 +10,6 @@ def create_context(current_user: User | None):
         context["user"] = {
             "username": current_user.username,
             "email": current_user.email,
-            "is_linked": current_user.granted_scopes is not None,
+            "is_superuser": current_user.is_superuser,
         }
     return context

@@ -1,11 +1,10 @@
 import logging
 
-from aredis_om import NotFoundError
 from fastapi import HTTPException
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from agora.api.crud import get_or_create_user
+from agora.api.crud import get_or_create_user, get_user_by_email
 from agora.api.models import GmailMessage, GooglePubSubPayload, User, UserCreate
 from agora.automation import run_automation_for_user
 from agora.config import settings
@@ -141,13 +140,10 @@ def list_messages(credentials: Credentials, query: str) -> list[GmailMessage]:
 async def handle_gmail_notification(payload: GooglePubSubPayload):
     # find user in DB
     LOGGER.info(f"Handling Gmail push notification for {payload.message.data.email}.")
-    try:
-        user: User = await User.find(
-            User.google_api_email == payload.message.data.email
-        ).first()  # type: ignore
-    except NotFoundError:
-        LOGGER.error(f"User {payload.message.data.email} not found.", exc_info=True)
-        raise NotFoundError(f"User {payload.message.data.email} not found.")
+    user = await get_user_by_email(email=payload.message.data.email)
+    if user is None:
+        LOGGER.error(f"User {payload.message.data.email} not found.")
+        raise ValueError(f"User {payload.message.data.email} not found.")
 
     # udpate user history id
     await user.update(google_api_history_id=payload.message.data.history_id)

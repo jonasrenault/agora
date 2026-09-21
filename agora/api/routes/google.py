@@ -17,7 +17,7 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient import errors as google_api_errors
 
 from agora.api import security, templates
-from agora.api.deps import CurrentSuperUser
+from agora.api.deps import CurrentUser
 from agora.api.models import (
     GooglePubSubData,
     GooglePubSubMessage,
@@ -130,27 +130,26 @@ async def oauth2callback(request: Request) -> RedirectResponse:
         httponly=True,
         max_age=int(access_token_expires.total_seconds()),
         secure=settings.FASTAPI_ENV != "development",  # Recommended for production
-        samesite="strict",
     )
     return response
 
 
-def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:
+def get_stored_credentials(user: CurrentUser, request: Request) -> Credentials:
     """
-    Retrieved stored credentials for the authorized super user.
+    Retrieved stored credentials for the authorized user.
 
     Args:
-        admin (CurrentSuperUser): The authorized super user.
+        user (CurrentUser): The authorized user.
         request (Request): The HTTP request object.
 
     Raises:
         HTTPException: if no credentials stored on disk.
 
     Returns:
-        Credentials: the super user's credentials object.
+        Credentials: the user's credentials object.
     """
     try:
-        credentials = user_credentials(admin)
+        credentials = user_credentials(user)
     except ValueError:
         raise HTTPException(
             status_code=403,
@@ -162,39 +161,34 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
     return credentials
 
 
-SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
-
-
-@router.get("/clear")
-async def clear_credentials(
-    admin: CurrentSuperUser, revoke: bool = False
-) -> RedirectResponse:
-    admin.granted_scopes = None
-    admin.token = None
-    if revoke:
-        admin.refresh_token = None
-    await admin.update()
-    return RedirectResponse(url="/")
+UserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
 
 
 @router.get("/revoke")
-async def revoke(credentials: SuperUserCredentials, request: Request) -> RedirectResponse:
+async def revoke(
+    user: CurrentUser, credentials: UserCredentials, request: Request
+) -> RedirectResponse:
     r = requests.post(
         "https://oauth2.googleapis.com/revoke",
         params={"token": credentials.token},
         headers={"content-type": "application/x-www-form-urlencoded"},
     )
     r.raise_for_status()
-    return RedirectResponse(
-        url=request.url_for("clear_credentials").include_query_params(revoke=True)
-    )
+    user.granted_scopes = None
+    user.token = None
+    user.refresh_token = None
+    await user.update()
+
+    response = RedirectResponse(url="/")
+    response.delete_cookie(key="access_token")
+    return response
 
 
 @router.get("/list")
 def gmail_list_messages(
     request: Request,
-    current_user: CurrentSuperUser,
-    credentials: SuperUserCredentials,
+    current_user: CurrentUser,
+    credentials: UserCredentials,
     hx_request: Annotated[str | None, Header()] = None,
     query: str = "",
 ):
@@ -230,15 +224,16 @@ async def gmail_push_webhook(
 
 @router.post("/test-webhook")
 async def test_gmail_push_webhook(
-    current_user: CurrentSuperUser, background_tasks: BackgroundTasks
+    current_user: CurrentUser, background_tasks: BackgroundTasks
 ):
-    if not current_user.google_api_email or not current_user.google_api_history_id:
+    if not current_user.google_api_history_id:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Missing user gmail address",
+            detail="Missing user's history id",
         )
+
     data = GooglePubSubData(
-        emailAddress=current_user.google_api_email,
+        emailAddress=current_user.email,
         historyId=current_user.google_api_history_id,
     )
     message = GooglePubSubMessage(
@@ -248,5 +243,4 @@ async def test_gmail_push_webhook(
         subscription=settings.GOOGLE_WEBHOOK_SUBSCRIPTION, message=message
     )
     background_tasks.add_task(handle_gmail_notification, payload)
-
     return {"ack": True}
