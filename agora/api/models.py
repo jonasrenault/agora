@@ -2,7 +2,7 @@ import base64
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Annotated, TypeVar
+from typing import Annotated, Any, TypeVar
 
 from aredis_om import EmbeddedJsonModel, Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, BeforeValidator, EmailStr, computed_field
@@ -194,8 +194,12 @@ class GooglePubSubData(BaseModel):
     history_id: str = PydanticField(alias="historyId")
 
 
-def parse_google_data(data: str) -> GooglePubSubData:
-    return GooglePubSubData.model_validate_json(base64.b64decode(data).decode("utf-8"))
+def parse_google_data(data: Any) -> GooglePubSubData:
+    if isinstance(data, str):
+        return GooglePubSubData.model_validate_json(
+            base64.b64decode(data).decode("utf-8")
+        )
+    return data
 
 
 class GooglePubSubMessage(BaseModel):

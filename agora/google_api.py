@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import HTTPException
 from google.oauth2.credentials import Credentials
@@ -89,6 +90,44 @@ def build_service(credentials: Credentials):
     )
 
 
+def list_messages_history(
+    credentials: Credentials, history_id: str
+) -> list[GmailMessage]:
+
+    # Fetch history records
+    service = build_service(credentials)
+    results = (
+        service.users()
+        .history()
+        .list(userId="me", startHistoryId=history_id, historyTypes=["messageAdded"])
+        .execute()
+    )
+    histories = []
+    histories.extend(results.get("history", []))
+
+    while "nextPageToken" in results:
+        page_token = results["nextPageToken"]
+        results = (
+            service.users()
+            .history()
+            .list(
+                userId="me",
+                startHistoryId=history_id,
+                historyTypes=["messageAdded"],
+                pageToken=page_token,
+            )
+            .execute()
+        )
+        histories.extend(results.get("history", []))
+
+    ids = []
+    for history in histories:
+        ids.extend(history.get("messages", []))
+
+    messages = get_message_details(credentials, ids)
+    return messages
+
+
 def list_messages(credentials: Credentials, query: str) -> list[GmailMessage]:
     service = build_service(credentials)
     results = (
@@ -110,6 +149,12 @@ def list_messages(credentials: Credentials, query: str) -> list[GmailMessage]:
         )
         ids.extend(results.get("messages", []))
 
+    messages = get_message_details(credentials, ids)
+    return messages
+
+
+def get_message_details(credentials: Credentials, ids: list[Any]) -> list[GmailMessage]:
+    service = build_service(credentials)
     messages: list[GmailMessage] = []
     for message_id in ids:
         message = (
@@ -133,7 +178,6 @@ def list_messages(credentials: Credentials, query: str) -> list[GmailMessage]:
                 sender = header["value"]
 
         messages.append(GmailMessage(sender=sender, subject=subject, snippet=snippet))
-
     return messages
 
 
@@ -145,17 +189,20 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
         LOGGER.error(f"User {payload.message.data.email} not found.")
         raise ValueError(f"User {payload.message.data.email} not found.")
 
-    # udpate user history id
-    await user.update(google_api_history_id=payload.message.data.history_id)
-
-    # check if user has agora notification email in inbox
+    # check if user has received new email
     credentials = user_credentials(user)
-    messages = list_messages(credentials, "")
+    if user.google_api_history_id is not None:
+        messages = list_messages_history(credentials, user.google_api_history_id)
+    else:
+        messages = list_messages(credentials, "")
     has_notification = False
     for message in messages:
-        if message.sender == settings.AGORA_NOTIFICATIONS_SENDER:
+        if settings.AGORA_NOTIFICATIONS_SENDER in message.sender:
             has_notification = True
             break
+
+    # udpate user history id
+    await user.update(google_api_history_id=payload.message.data.history_id)
 
     if not has_notification:
         LOGGER.info("No agora portal notification found in user's inbox.")
