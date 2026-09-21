@@ -59,4 +59,5 @@ class Settings(BaseSettings):
     ################
     # GOOGLE API SETTINGS
     ################
+    GOOGLE_WEBHOOK_TOPIC: str = "projects/myproject/topics/mytopic"
     GOOGLE_WEBHOOK_SUBSCRIPTION: str = "projects/myproject/subscriptions/mysubscription"
