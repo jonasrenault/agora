@@ -1,4 +1,3 @@
-import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Header, HTTPException, Request, status
@@ -6,11 +5,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from agora.api import templates
 from agora.api.deps import CurrentUser
-from agora.api.models import AgoraCreate, SlotAutomationResult, User, UserAgoraUpdate
+from agora.api.models import AgoraCreate, UserAgoraUpdate
 from agora.api.render import create_context
-from agora.automation import book_dates
+from agora.automation import run_automation_for_user
 from agora.config import settings
-from agora.crypto import decrypt, encrypt
+from agora.crypto import encrypt
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -25,10 +24,13 @@ async def run_automation(
     """
     Run automation to book user's slots on Agora.
     """
-    semaphore = asyncio.Semaphore(1)  # Max 1 concurrent tasks
-    async with semaphore:
+    try:
         await run_automation_for_user(
             current_user, agora_params.headless, agora_params.dry_run
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e)
         )
 
     if hx_request:
@@ -39,34 +41,6 @@ async def run_automation(
         )
 
     return current_user
-
-
-async def run_automation_for_user(current_user: User, headless: bool, dry_run: bool):
-    if not current_user.agora_slots:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="No slots to reserve for current user.",
-        )
-
-    if not current_user.agora_password or not current_user.agora_email:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Undefined Agora email or password for current user.",
-        )
-
-    agora_password = decrypt(current_user.agora_password, settings.SECRET_KEY)
-    run = await book_dates(
-        email=current_user.agora_email,
-        pwd=agora_password,
-        dates=current_user.agora_slots,
-        headless=headless,
-        dry_run=dry_run,
-    )
-    current_user.automation_runs.append(run)
-    current_user.remove_slots(
-        [s.slot for s in run.slots if s.result is SlotAutomationResult.success]
-    )
-    await current_user.save()
 
 
 @router.get("/")

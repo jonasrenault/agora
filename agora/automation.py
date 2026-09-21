@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 from base64 import b64encode
@@ -9,10 +10,13 @@ from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
-from agora.api.models import AgoraSlot, AutomationRun, SlotAutomationResult
+from agora.api.models import AgoraSlot, AutomationRun, SlotAutomationResult, User
 from agora.config import settings
+from agora.crypto import decrypt
 
 LOGGER = logging.getLogger(__name__)
+
+USER_RUN_SEMAPHORE = asyncio.Semaphore(1)  # Max 1 concurrent tasks
 
 TIMEOUT_1S = 1000
 TIMEOUT_2S = 2000
@@ -425,3 +429,26 @@ async def book_dates(
         run.screenshot = _get_screenshot_base64(save_dir)
 
     return run
+
+
+async def run_automation_for_user(user: User, headless: bool, dry_run: bool):
+    if not user.agora_slots:
+        raise ValueError("No slots to reserve for current user.")
+
+    if not user.agora_password or not user.agora_email:
+        raise ValueError("Undefined Agora email or password for current user.")
+
+    async with USER_RUN_SEMAPHORE:  # Max 1 concurrent tasks
+        agora_password = decrypt(user.agora_password, settings.SECRET_KEY)
+        run = await book_dates(
+            email=user.agora_email,
+            pwd=agora_password,
+            dates=user.agora_slots,
+            headless=headless,
+            dry_run=dry_run,
+        )
+        user.automation_runs.append(run)
+        user.remove_slots(
+            [s.slot for s in run.slots if s.result is SlotAutomationResult.success]
+        )
+        await user.save()

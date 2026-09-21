@@ -11,10 +11,13 @@ class Settings(BaseSettings):
         env_file=".env", env_ignore_empty=True, extra="ignore"
     )
 
-    # Agora Plus home page URL
+    ################
+    # AGORA PORTAL SETTINGS
+    ################
     AGORA_HOME_PAGE: str = (
         "https://portalssl.agoraplus.fr/images_stmalo/v3/pck_home/home_view_local.html#/"
     )
+    AGORA_NOTIFICATIONS_SENDER: str = "test"
 
     ################
     # REDIS SETTINGS
@@ -52,3 +55,8 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_CLIENT_ID: str = "asdfjasdljfasdkjf"
     GOOGLE_OAUTH_CLIENT_SECRET: str = "changethis"
     GOOGLE_OAUTH_PROJECT_ID: str = "agora-098723"
+
+    ################
+    # GOOGLE API SETTINGS
+    ################
+    GOOGLE_WEBHOOK_SUBSCRIPTION: str = "projects/myproject/subscriptions/mysubscription"

@@ -1,12 +1,47 @@
+import logging
+
+from aredis_om import NotFoundError
 from fastapi import HTTPException
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from agora.api.models import User
+from agora.api.models import GmailMessage, GooglePubSubPayload, User
+from agora.automation import run_automation_for_user
+from agora.config import settings
+
+LOGGER = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 API_SERVICE_NAME = "gmail"
 API_VERSION = "v1"
+GOOGLE_OAUTH_CLIENT_CONFIG = {
+    "web": {
+        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+        "project_id": settings.GOOGLE_OAUTH_PROJECT_ID,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+        "redirect_uris": [
+            "http://127.0.0.1:8000/api/v1/google/oauth2callback",
+            "https://agora-production-dba8.up.railway.app/api/v1/google/oauth2callback",
+            "http://localhost/api/v1/google/oauth2callback",
+        ],
+    }
+}
+
+
+def user_credentials(user: User) -> Credentials:
+    client_config = GOOGLE_OAUTH_CLIENT_CONFIG["web"]
+    credentials = Credentials(
+        refresh_token=user.refresh_token,
+        scopes=user.granted_scopes,
+        token=user.token,
+        client_id=client_config.get("client_id"),
+        client_secret=client_config.get("client_secret"),
+        token_uri=client_config.get("token_uri"),
+    )
+    return credentials
 
 
 async def check_and_store_user_credentials(credentials: Credentials, user: User):
@@ -53,7 +88,7 @@ def build_service(credentials: Credentials):
     )
 
 
-def list_messages(credentials: Credentials, query: str):
+def list_messages(credentials: Credentials, query: str) -> list[GmailMessage]:
     service = build_service(credentials)
     results = (
         service.users()
@@ -74,7 +109,7 @@ def list_messages(credentials: Credentials, query: str):
         )
         ids.extend(results.get("messages", []))
 
-    messages = []
+    messages: list[GmailMessage] = []
     for message_id in ids:
         message = (
             service.users()
@@ -96,5 +131,34 @@ def list_messages(credentials: Credentials, query: str):
             elif header["name"] == "From":
                 sender = header["value"]
 
-        messages.append({"subject": subject, "sender": sender, "snippet": snippet})
+        messages.append(GmailMessage(sender=sender, subject=subject, snippet=snippet))
+
     return messages
+
+
+async def handle_gmail_notification(payload: GooglePubSubPayload):
+    # find user in DB
+    LOGGER.info(f"Handling Gmail push notification for {payload.message.data.email}.")
+    try:
+        user: User = await User.find(
+            User.google_api_email == payload.message.data.email
+        ).first()  # type: ignore
+    except NotFoundError:
+        LOGGER.error(f"User {payload.message.data.email} not found.", exc_info=True)
+        raise NotFoundError(f"User {payload.message.data.email} not found.")
+
+    # check if user has agora notification email in inbox
+    credentials = user_credentials(user)
+    messages = list_messages(credentials, "")
+    has_notification = False
+    for message in messages:
+        if message.sender == settings.AGORA_NOTIFICATIONS_SENDER:
+            has_notification = True
+            break
+
+    if not has_notification:
+        LOGGER.info("No agora portal notification found in user's inbox.")
+        return
+
+    # trigger an automation run
+    await run_automation_for_user(user, headless=True, dry_run=False)

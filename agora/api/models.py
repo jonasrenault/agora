@@ -1,3 +1,4 @@
+import base64
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from enum import Enum
@@ -5,6 +6,7 @@ from typing import Annotated, TypeVar
 
 from aredis_om import EmbeddedJsonModel, Field, JsonModel, get_redis_connection
 from pydantic import BaseModel, BeforeValidator, EmailStr, computed_field
+from pydantic import Field as PydanticField
 
 from agora.config import settings
 
@@ -185,3 +187,29 @@ class UsersResponse(BaseModel):
 class AgoraCreate(BaseModel):
     headless: bool = False
     dry_run: bool = False
+
+
+class GmailMessage(BaseModel):
+    sender: str
+    subject: str
+    snippet: str
+
+
+class GooglePubSubData(BaseModel):
+    email: EmailStr = PydanticField(alias="emailAddress")
+    history_id: str = PydanticField(alias="historyId")
+
+
+def parse_google_data(data: str) -> GooglePubSubData:
+    return GooglePubSubData.model_validate_json(base64.b64decode(data).decode("utf-8"))
+
+
+class GooglePubSubMessage(BaseModel):
+    data: Annotated[GooglePubSubData, BeforeValidator(parse_google_data)]
+    messageId: str
+    publishTime: datetime
+
+
+class GooglePubSubPayload(BaseModel):
+    message: GooglePubSubMessage
+    subscription: str

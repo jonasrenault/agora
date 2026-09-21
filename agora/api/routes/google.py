@@ -9,28 +9,18 @@ from googleapiclient import errors as google_api_errors
 
 from agora.api import templates
 from agora.api.deps import CurrentSuperUser
+from agora.api.models import GooglePubSubPayload
 from agora.api.render import create_context
 from agora.config import settings
-from agora.google_api import SCOPES, check_and_store_user_credentials, list_messages
+from agora.google_api import (
+    GOOGLE_OAUTH_CLIENT_CONFIG,
+    SCOPES,
+    check_and_store_user_credentials,
+    list_messages,
+    user_credentials,
+)
 
 router = APIRouter(prefix="/google", tags=["google"])
-
-
-GOOGLE_OAUTH_CLIENT_CONFIG = {
-    "web": {
-        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-        "project_id": settings.GOOGLE_OAUTH_PROJECT_ID,
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-        "redirect_uris": [
-            "http://127.0.0.1:8000/api/v1/google/oauth2callback",
-            "https://agora-production-dba8.up.railway.app/api/v1/google/oauth2callback",
-            "http://localhost/api/v1/google/oauth2callback",
-        ],
-    }
-}
 
 
 @router.get("/authorize")
@@ -129,9 +119,6 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
     Returns:
         Credentials: the super user's credentials object.
     """
-    # Load client secrets from the server-side file.
-    client_config = GOOGLE_OAUTH_CLIENT_CONFIG["web"]
-
     if (
         admin.token is None and admin.refresh_token is None
     ) or admin.granted_scopes is None:
@@ -143,17 +130,7 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
             ),
         )
 
-    # Reconstruct the credentials object.
-    credentials = Credentials(
-        refresh_token=admin.refresh_token,
-        scopes=admin.granted_scopes,
-        token=admin.token,
-        client_id=client_config.get("client_id"),
-        client_secret=client_config.get("client_secret"),
-        token_uri=client_config.get("token_uri"),
-    )
-
-    return credentials
+    return user_credentials(admin)
 
 
 SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
@@ -209,3 +186,13 @@ def gmail_list_messages(
     return templates.TemplateResponse(
         request=request, name="pages/gmail_messages.html", context=context
     )
+
+
+@router.post("/webhook")
+async def gmail_push_webhook(payload: GooglePubSubPayload):
+    if payload.subscription == settings.GOOGLE_WEBHOOK_SUBSCRIPTION:
+        # trigger check and run
+        pass
+
+    # Always return 200.OK to acknowledge notification
+    return {"ack": True}
