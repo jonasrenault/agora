@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, cast
 
 import requests
@@ -16,9 +16,14 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient import errors as google_api_errors
 
-from agora.api import templates
+from agora.api import security, templates
 from agora.api.deps import CurrentSuperUser
-from agora.api.models import GooglePubSubData, GooglePubSubMessage, GooglePubSubPayload
+from agora.api.models import (
+    GooglePubSubData,
+    GooglePubSubMessage,
+    GooglePubSubPayload,
+    Token,
+)
 from agora.api.render import create_context
 from agora.config import settings
 from agora.google_api import (
@@ -34,14 +39,12 @@ router = APIRouter(prefix="/google", tags=["google"])
 
 
 @router.get("/authorize")
-def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
+def authorize(request: Request) -> RedirectResponse:
     """
-    Route to authorize a super user to access their Gmail account via OAuth 2.0.
+    Route to authorize a user to access their Gmail account via OAuth 2.0.
     This requests consent from the user by interacting with Google's OAuth 2.0 server.
 
     Args:
-        admin (CurrentSuperUser): The super user dependency, to ensure that only
-            authorized super users can access this route.
         request (Request): The HTTP request object.
     """
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
@@ -71,7 +74,7 @@ def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
 
 
 @router.get("/oauth2callback")
-async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectResponse:
+async def oauth2callback(request: Request) -> RedirectResponse:
     """
     The callback endpoint for Google's OAuth 2.0 server response. The OAuth 2.0 server
     responds to the application by sending a request to this URL. If the user approves
@@ -83,11 +86,11 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
 
     An error response:
 
-        https://agora.fastapicloud.com/api/v1/google/oauth2callback?error=access_denied
+        https://agora.com/api/v1/google/oauth2callback?error=access_denied
 
     An authorization code response:
 
-        https://agora.fastapicloud.com/api/v1/google/oauth2callback?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
+        https://agora.com/api/v1/google/oauth2callback?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
     """
     # Specify the state when creating the flow in the callback so that it can
     # verified in the authorization server response.
@@ -110,9 +113,26 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
 
     # Store credentials in DB
     credentials = cast(Credentials, flow.credentials)
-    await check_and_store_user_credentials(credentials, admin)
+    user = await check_and_store_user_credentials(credentials)
 
-    return RedirectResponse(url=request.url_for("gmail_list_messages"))
+    # Generate a token for app auth
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = Token(
+        access_token=security.create_access_token(
+            data={"sub": user.pk}, expires_delta=access_token_expires
+        )
+    )
+
+    response = RedirectResponse(url="/")
+    response.set_cookie(
+        key="access_token",
+        value=f"{token.token_type.capitalize()} {token.access_token}",
+        httponly=True,
+        max_age=int(access_token_expires.total_seconds()),
+        secure=settings.FASTAPI_ENV != "development",  # Recommended for production
+        samesite="strict",
+    )
+    return response
 
 
 def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aredis_om import (
     NotFoundError,
@@ -7,12 +7,38 @@ from aredis_om import (
     get_redis_connection,
 )
 
-from agora.api.models import User, UserCreate, UserUpdate
+from agora.api.models import User, UserCreate
 from agora.api.security import get_password_hash, verify_password
 from agora.config import settings
 from agora.crypto import encrypt
 
 LOGGER = logging.getLogger(__name__)
+
+
+async def get_or_create_user(user_create: UserCreate, is_superuser: bool = False) -> User:
+    existing_user = await get_user_by_email(email=user_create.email)
+    user_data = user_create.model_dump(exclude_unset=True, exclude_none=True)
+    try:
+        if user_data["password"]:
+            user_data["hashed_password"] = get_password_hash(user_data["password"])
+            del user_data["password"]
+    except KeyError:
+        pass
+
+    if not existing_user:  # create new user
+        db_obj = User.model_validate(
+            {
+                **user_data,
+                "created_at": datetime.now(timezone.utc),
+                "is_superuser": is_superuser,
+            }
+        )
+        await db_obj.save()
+        return db_obj
+
+    # update existing user
+    await existing_user.update(**user_data)
+    return existing_user
 
 
 async def create_user(*, user_create: UserCreate, is_superuser: bool = False) -> User:
@@ -31,29 +57,6 @@ async def create_user(*, user_create: UserCreate, is_superuser: bool = False) ->
 
     await db_obj.save()
     return db_obj
-
-
-async def update_user(*, db_user: User, user_in: UserUpdate) -> User:
-    if user_in.email is not None:
-        existing_user = await get_user_by_email(email=user_in.email)
-        if existing_user:
-            raise ValueError(f"User with email {user_in.email} already exists.")
-
-    user_data = user_in.model_dump(exclude_unset=True)
-    try:
-        if user_data["password"]:
-            user_data["hashed_password"] = get_password_hash(user_data["password"])
-            del user_data["password"]
-    except KeyError:
-        pass
-
-    extra_data = {}
-    if "password" in user_data:
-        password = user_data["password"]
-        hashed_password = get_password_hash(password)
-        extra_data["hashed_password"] = hashed_password
-    await db_user.update(**user_data)
-    return db_user
 
 
 async def get_user_by_email(*, email: str) -> User | None:
@@ -92,7 +95,7 @@ DUMMY_HASH = "$argon2id$v=19$m=65536,t=3,p=4$MjQyZWE1MzBjYjJlZTI0Yw$YTU4NGM5ZTZm
 
 async def authenticate_user(username: str, password: str) -> User | None:
     db_user = await get_user_by_email(email=username)
-    if not db_user:
+    if not db_user or not db_user.hashed_password:
         # Prevent timing attacks by running password verification even when user doesn't
         # exist. This ensures the response time is similar whether or not the email exists
         verify_password(password, DUMMY_HASH)

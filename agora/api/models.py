@@ -83,7 +83,7 @@ class User(JsonModel, index=True):  # type: ignore
     username: str | None = Field(default=None, index=True)
     is_active: bool = Field(default=True, index=True)
     is_superuser: bool = Field(default=False, index=True)
-    hashed_password: str = Field(index=False)
+    hashed_password: str | None = Field(default=None, index=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), index=True, sortable=True
     )
@@ -92,7 +92,6 @@ class User(JsonModel, index=True):  # type: ignore
     token: str | None = Field(default=None, index=False)
     refresh_token: str | None = Field(default=None, index=False)
     granted_scopes: list[str] | None = Field(default=None, index=False)
-    google_api_email: EmailStr | None = Field(default=None, index=True)
     google_api_history_id: str | None = Field(default=None, index=False)
 
     # Agora
@@ -125,16 +124,11 @@ class User(JsonModel, index=True):  # type: ignore
 class UserCreate(BaseModel):
     email: EmailStr
     username: str | None = None
-    password: str
-
-
-# Properties to receive via API on update, all are optional
-class UserUpdate(BaseModel):
-    email: EmailStr | None = None
-    is_active: bool | None = None
-    is_superuser: bool | None = None
-    username: str | None = None
     password: str | None = None
+    google_api_history_id: str | None = None
+    token: str | None = None
+    refresh_token: str | None = None
+    granted_scopes: list[str] | None = None
 
 
 def parse_date_list(value: str | list[str] | list[date] | None) -> list[date] | None:
