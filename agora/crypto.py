@@ -8,6 +8,16 @@ from agora.api.models import EncryptedValue
 
 
 def encrypt(plain_text: str, password: str) -> EncryptedValue:
+    """
+    Utility method to symetricaly encrypt a value using AES.
+
+    Args:
+        plain_text (str): the plain text value to encrypt.
+        password (str): the secret password used to encrypt and decrypt.
+
+    Returns:
+        EncryptedValue: the encrypted object.
+    """
     salt = get_random_bytes(16)
     # Derive a 32-byte key (AES-256) from password
     key = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
@@ -23,7 +33,17 @@ def encrypt(plain_text: str, password: str) -> EncryptedValue:
     )
 
 
-def decrypt(encrypted_value: EncryptedValue, password: str):
+def decrypt(encrypted_value: EncryptedValue, password: str) -> str:
+    """
+    Decrypt and encrypted value with the provided password.
+
+    Args:
+        encrypted_value (EncryptedValue): the encrypted value.
+        password (str): the secret password.
+
+    Returns:
+        str: the plain text value.
+    """
     salt = base64.b64decode(encrypted_value.salt)
     nonce = base64.b64decode(encrypted_value.nonce)
     tag = base64.b64decode(encrypted_value.tag)

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from agora.agora import SlotColor, _full_month_french, _get_slot_color
+from agora.automation import SlotColor, _full_month_french, _get_slot_color
 
 # Check if running in GitHub Actions
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"

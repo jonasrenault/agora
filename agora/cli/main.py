@@ -4,7 +4,7 @@ import logging
 import typer
 from rich.logging import RichHandler
 
-from agora.agora import book_agora
+from agora.automation import book_dates
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -18,7 +18,7 @@ def book():
     """
     Book a slot.
     """
-    asyncio.run(book_agora())
+    asyncio.run(book_dates())
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 from base64 import b64encode
@@ -9,10 +10,13 @@ from patchright.async_api import Browser, BrowserContext, Page, async_playwright
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from PIL import Image
 
-from agora.api.models import AgoraResult, AgoraRun, AgoraSlot
+from agora.api.models import AgoraSlot, AutomationRun, SlotAutomationResult, User
 from agora.config import settings
+from agora.crypto import decrypt
 
 LOGGER = logging.getLogger(__name__)
+
+USER_RUN_SEMAPHORE = asyncio.Semaphore(1)  # Max 1 concurrent tasks
 
 TIMEOUT_1S = 1000
 TIMEOUT_2S = 2000
@@ -46,6 +50,16 @@ class SlotColor(str, Enum):
 
 
 def _full_month_french(date: date) -> str:
+    """
+    Return the full month name in french for the given date. Used to avoid
+    having to install a french locale on the machine.
+
+    Args:
+        date (date): the input date
+
+    Returns:
+        str: the full month name in french
+    """
     return FRENCH_MONTHS[date.month]
 
 
@@ -71,6 +85,15 @@ async def _log_page(page: Page, save_dir: Path, show: bool = False):
 
 
 def _get_screenshot_base64(save_dir: Path) -> str | None:
+    """
+    Get the screenshot as base64 encoded string.
+
+    Args:
+        save_dir (Path): the save directory where the screenshot is saved on disk.
+
+    Returns:
+        str | None: the base64 encoded string if the screenshot file exists.
+    """
     screen = save_dir / "screenshot.png"
     if screen.exists():
         with open(screen, "rb") as image_file:
@@ -90,11 +113,11 @@ async def _get_slot_index(page: Page, date: date) -> int:
         return -1
 
 
-async def _reserve_slot(page: Page, date: date) -> AgoraResult:
+async def _reserve_slot(page: Page, date: date) -> SlotAutomationResult:
     slot_index = await _get_slot_index(page, date)
     if slot_index < 0:
         LOGGER.debug(f"Target date {date} is not available for reservation.")
-        return AgoraResult.not_found
+        return SlotAutomationResult.not_found
 
     # Find the target slot and check its color
     slots = await page.locator("a.fc-event").all()
@@ -106,7 +129,7 @@ async def _reserve_slot(page: Page, date: date) -> AgoraResult:
     # If target slot is green it's already booked don't click it
     if slot_color is SlotColor.green:
         LOGGER.debug("Target slot already booked, skipping reservation.")
-        return AgoraResult.already_booked
+        return SlotAutomationResult.already_booked
 
     # Click the slot and check for alert popups
     await slot.click(timeout=TIMEOUT_5S)
@@ -121,7 +144,7 @@ async def _reserve_slot(page: Page, date: date) -> AgoraResult:
             has_text="Une alerte a déjà été créée"
         ).first.click(timeout=TIMEOUT_1S)
         LOGGER.debug("Target slot is red and an alert has already been created.")
-        return AgoraResult.unavailable
+        return SlotAutomationResult.unavailable
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
@@ -131,7 +154,7 @@ async def _reserve_slot(page: Page, date: date) -> AgoraResult:
         )
         await page.get_by_role("button", name="Event toolbar action").click()
         LOGGER.debug("Cannot book slot less than 4 days before.")
-        return AgoraResult.too_late
+        return SlotAutomationResult.too_late
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
@@ -139,13 +162,13 @@ async def _reserve_slot(page: Page, date: date) -> AgoraResult:
         # Create a new alert.
         await page.get_by_text("Créer une alerte", exact=True).click(timeout=TIMEOUT_2S)
         LOGGER.debug("Target slot is red. A new alert has been created.")
-        return AgoraResult.alert
+        return SlotAutomationResult.alert
     except (PlaywrightTimeoutError, TimeoutError):
         pass
 
     LOGGER.info(f"Target slot {date} added to reservations.")
     await page.wait_for_timeout(TIMEOUT_1S)  # Wait for the calendar to update
-    return AgoraResult.success
+    return SlotAutomationResult.success
 
 
 async def _submit_reservations(page: Page) -> bool:
@@ -309,7 +332,7 @@ for (const [key, value] of Object.entries(entries)) {
     return context
 
 
-async def _run(
+async def _run_automation(
     home_page: str,
     email: str,
     pwd: str,
@@ -318,6 +341,20 @@ async def _run(
     save_dir: Path,
     dry_run: bool,
 ):
+    """
+    Run automation script, using playwright to open a browser and navigate to the
+    given homepage, login with provided email and password, and try to book the given
+    dates.
+
+    Args:
+        home_page (str): the homepage url.
+        email (str): the login email.
+        pwd (str): the login password.
+        slots (list[AgoraSlot]): the dates to book.
+        headless (bool): run in headless mode.
+        save_dir (Path): save directory.
+        dry_run (bool): dry run without submitting changes.
+    """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=headless)
         context = await _get_context(browser, save_dir)
@@ -335,7 +372,7 @@ async def _run(
 
             LOGGER.info("\n".join([str(s) for s in slots]))
             if (
-                any([slot.result is AgoraResult.success for slot in slots])
+                any([slot.result is SlotAutomationResult.success for slot in slots])
                 and not dry_run
             ):
                 await _submit_reservations(page)
@@ -350,19 +387,14 @@ async def _run(
         await _log_page(page, save_dir)
 
 
-async def book_agora(
-    email: str = settings.ADMIN_AGORA_EMAIL,
-    pwd: str = settings.ADMIN_AGORA_PASSWORD,
-    dates: list[date] = [
-        date(2026, 10, 22),
-        date(2026, 10, 24),
-        date(2026, 9, 22),
-        date(2026, 9, 9),
-    ],
+async def book_dates(
+    email: str,
+    pwd: str,
+    dates: list[date],
     headless: bool = False,
     save_dir: Path = Path.cwd() / "runs",
     dry_run: bool = True,
-) -> AgoraRun:
+) -> AutomationRun:
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -372,9 +404,9 @@ async def book_agora(
     handler.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
     LOGGER.addHandler(handler)
 
-    run = AgoraRun(slots=[AgoraSlot(slot=d) for d in dates])
+    run = AutomationRun(slots=[AgoraSlot(slot=d) for d in dates])
     try:
-        await _run(
+        await _run_automation(
             home_page=settings.AGORA_HOME_PAGE,
             email=email,
             pwd=pwd,
@@ -397,3 +429,26 @@ async def book_agora(
         run.screenshot = _get_screenshot_base64(save_dir)
 
     return run
+
+
+async def run_automation_for_user(user: User, headless: bool, dry_run: bool):
+    if not user.agora_slots:
+        raise ValueError("No slots to reserve for current user.")
+
+    if not user.agora_password or not user.agora_email:
+        raise ValueError("Undefined Agora email or password for current user.")
+
+    async with USER_RUN_SEMAPHORE:  # Max 1 concurrent tasks
+        agora_password = decrypt(user.agora_password, settings.SECRET_KEY)
+        run = await book_dates(
+            email=user.agora_email,
+            pwd=agora_password,
+            dates=user.agora_slots,
+            headless=headless,
+            dry_run=dry_run,
+        )
+        user.automation_runs.append(run)
+        user.remove_slots(
+            [s.slot for s in run.slots if s.result is SlotAutomationResult.success]
+        )
+        await user.save()

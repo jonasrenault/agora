@@ -1,6 +1,7 @@
 <ul class="menu bg-base-100 min-h-full w-80 p-4 text-base-content">
     <!-- Sidebar content here -->
     <li class="mb-5 font-semibold text-xl"><a href="/">Agora</a></li>
+    {% if user.is_superuser %}
     <li>
         <details open>
             <summary>
@@ -26,6 +27,7 @@
             </ul>
         </details>
     </li>
+    {% endif %}
 
     <li>
         <details open>
@@ -74,7 +76,7 @@
             </ul>
         </details>
     </li>
-    {% if user.is_linked %}
+
     <li>
         <details open>
             <summary>
@@ -113,37 +115,16 @@
                         <span>List Messages</span>
                     </a>
                 </li>
-            </ul>
-        </details>
-    </li>
-    {% endif %}
-    <li>
-        <details open>
-            <summary>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                    stroke="currentColor" aria-hidden="true" class="h-5 w-5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z">
-                    </path>
-                </svg>
-                Account
-            </summary>
-            <ul>
-                {% if user.is_linked %}
                 <li>
-                    <a href="/api/v1/google/clear">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
-                            viewBox="0 0 24 24" aria-hidden="true">
-                            <path
-                                d="M19 7a1 1 0 0 0-1 1v11.191A1.92 1.92 0 0 1 15.99 21H8.01A1.92 1.92 0 0 1 6 19.191V8a1 1 0 0 0-2 0v11.191A3.918 3.918 0 0 0 8.01 23h7.98A3.918 3.918 0 0 0 20 19.191V8a1 1 0 0 0-1-1Zm1-3h-4V2a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v2H4a1 1 0 0 0 0 2h16a1 1 0 0 0 0-2ZM10 4V3h4v1Z"
-                                data-original="#000000" />
-                            <path d="M11 17v-7a1 1 0 0 0-2 0v7a1 1 0 0 0 2 0Zm4 0v-7a1 1 0 0 0-2 0v7a1 1 0 0 0 2 0Z"
-                                data-original="#000000" />
+                    <a hx-post="{{ url_for('test_gmail_push_webhook') }}" hx-swap="none">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="size-6">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0M3.124 7.5A8.969 8.969 0 0 1 5.292 3m13.416 0a8.969 8.969 0 0 1 2.168 4.5" />
                         </svg>
-                        <span>Clear Google Credentials</span>
+                        <span>Trigger webhook</span>
                     </a>
                 </li>
-
                 <li>
                     <a href="/api/v1/google/revoke">
                         <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] overflow-visible"
@@ -170,49 +151,22 @@
                         Revoke Google Credentials
                     </a>
                 </li>
-                {% else %}
-                <li>
-                    <a href="/api/v1/google/authorize">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] overflow-visible"
-                            viewBox="0 0 512 512" aria-hidden="true">
-                            <path fill="#fbbd00"
-                                d="M120 256c0-25.367 6.989-49.13 19.131-69.477v-86.308H52.823C18.568 144.703 0 198.922 0 256s18.568 111.297 52.823 155.785h86.308v-86.308C126.989 305.13 120 281.367 120 256z"
-                                data-original="#fbbd00" />
-                            <path fill="#0f9d58"
-                                d="m256 392-60 60 60 60c57.079 0 111.297-18.568 155.785-52.823v-86.216h-86.216C305.044 385.147 281.181 392 256 392z"
-                                data-original="#0f9d58" />
-                            <path fill="#31aa52"
-                                d="m139.131 325.477-86.308 86.308a260.085 260.085 0 0 0 22.158 25.235C123.333 485.371 187.62 512 256 512V392c-49.624 0-93.117-26.72-116.869-66.523z"
-                                data-original="#31aa52" />
-                            <path fill="#3c79e6"
-                                d="M512 256a258.24 258.24 0 0 0-4.192-46.377l-2.251-12.299H256v120h121.452a135.385 135.385 0 0 1-51.884 55.638l86.216 86.216a260.085 260.085 0 0 0 25.235-22.158C485.371 388.667 512 324.38 512 256z"
-                                data-original="#3c79e6" />
-                            <path fill="#cf2d48"
-                                d="m352.167 159.833 10.606 10.606 84.853-84.852-10.606-10.606C388.668 26.629 324.381 0 256 0l-60 60 60 60c36.326 0 70.479 14.146 96.167 39.833z"
-                                data-original="#cf2d48" />
-                            <path fill="#eb4132"
-                                d="M256 120V0C187.62 0 123.333 26.629 74.98 74.98a259.849 259.849 0 0 0-22.158 25.235l86.308 86.308C162.883 146.72 206.376 120 256 120z"
-                                data-original="#eb4132" />
-                        </svg>
-                        Link Google Account
-                    </a>
-                </li>
-                {% endif %}
-                <li>
-                    <a href="/api/v1/logout">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
-                            viewBox="0 0 64 64" aria-hidden="true">
-                            <path fill-rule="evenodd"
-                                d="M14.6 6.688c-7.29 0-13.2 5.862-13.2 13.092V41.6c0 7.23 5.91 13.092 13.2 13.092h24.2a2.2 2.182 0 1 0 0-4.364H14.6A8.8 8.728 0 0 1 5.8 41.6V24.144h52.8v7.637a2.2 2.182 0 1 0 4.4 0V19.78c0-7.23-5.91-13.092-13.2-13.092zm44 13.092H5.8a8.8 8.728 0 0 1 8.8-8.728h35.2a8.8 8.728 0 0 1 8.8 8.728"
-                                clip-rule="evenodd" data-original="#000000" />
-                            <path
-                                d="M63 45.964a8.8 8.728 0 0 0-8.8-8.728H38.8a2.2 2.182 0 1 0 0 4.364h15.4a4.4 4.364 0 0 1 0 8.728h-1.84l.645-.64a2.2 2.182 0 1 0-3.11-3.085l-4.4 4.364a2.2 2.182 0 0 0 0 3.085l4.4 4.364a2.2 2.182 0 1 0 3.11-3.085l-.644-.64H54.2a8.8 8.728 0 0 0 8.8-8.727M12.4 28.508a2.2 2.182 0 1 0 0 4.364h8.8a2.2 2.182 0 1 0 0-4.364z"
-                                data-original="#000000" />
-                        </svg>
-                        Logout
-                    </a>
-                </li>
             </ul>
         </details>
+    </li>
+
+    <li>
+        <a href="/api/v1/logout">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-[18px] fill-current overflow-visible"
+                viewBox="0 0 64 64" aria-hidden="true">
+                <path fill-rule="evenodd"
+                    d="M14.6 6.688c-7.29 0-13.2 5.862-13.2 13.092V41.6c0 7.23 5.91 13.092 13.2 13.092h24.2a2.2 2.182 0 1 0 0-4.364H14.6A8.8 8.728 0 0 1 5.8 41.6V24.144h52.8v7.637a2.2 2.182 0 1 0 4.4 0V19.78c0-7.23-5.91-13.092-13.2-13.092zm44 13.092H5.8a8.8 8.728 0 0 1 8.8-8.728h35.2a8.8 8.728 0 0 1 8.8 8.728"
+                    clip-rule="evenodd" data-original="#000000" />
+                <path
+                    d="M63 45.964a8.8 8.728 0 0 0-8.8-8.728H38.8a2.2 2.182 0 1 0 0 4.364h15.4a4.4 4.364 0 0 1 0 8.728h-1.84l.645-.64a2.2 2.182 0 1 0-3.11-3.085l-4.4 4.364a2.2 2.182 0 0 0 0 3.085l4.4 4.364a2.2 2.182 0 1 0 3.11-3.085l-.644-.64H54.2a8.8 8.728 0 0 0 8.8-8.727M12.4 28.508a2.2 2.182 0 1 0 0 4.364h8.8a2.2 2.182 0 1 0 0-4.364z"
+                    data-original="#000000" />
+            </svg>
+            Logout
+        </a>
     </li>
 </ul>

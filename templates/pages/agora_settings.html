@@ -8,7 +8,7 @@
 
     <div class="max-w-md w-full">
         <div>
-            <form class="space-y-6" method="POST" action="/api/v1/agora/settings">
+            <form class="space-y-6" method="POST" action="{{ url_for('update_agora_settings') }}">
                 <div>
                     <label for="email" class="mb-2 font-medium text-sm inline-block">Agora Portal Email</label>
                     <input type="email" id="email" name="agora_email" placeholder="john@agora.fr"

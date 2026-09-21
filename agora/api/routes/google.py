@@ -1,48 +1,50 @@
-from typing import Annotated
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, cast
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    status,
+)
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient import errors as google_api_errors
-from googleapiclient.discovery import build
 
-from agora.api.deps import CurrentSuperUser
+from agora.api import security, templates
+from agora.api.deps import CurrentUser
+from agora.api.models import (
+    GooglePubSubData,
+    GooglePubSubMessage,
+    GooglePubSubPayload,
+    Token,
+)
+from agora.api.render import create_context
 from agora.config import settings
+from agora.google_api import (
+    GOOGLE_OAUTH_CLIENT_CONFIG,
+    SCOPES,
+    check_and_store_user_credentials,
+    handle_gmail_notification,
+    list_messages,
+    user_credentials,
+)
 
 router = APIRouter(prefix="/google", tags=["google"])
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
-API_SERVICE_NAME = "gmail"
-API_VERSION = "v1"
-
-GOOGLE_OAUTH_CLIENT_CONFIG = {
-    "web": {
-        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-        "project_id": settings.GOOGLE_OAUTH_PROJECT_ID,
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-        "redirect_uris": [
-            "http://127.0.0.1:8000/api/v1/google/oauth2callback",
-            "https://agora-production-dba8.up.railway.app/api/v1/google/oauth2callback",
-            "http://localhost/api/v1/google/oauth2callback",
-        ],
-    }
-}
-
 
 @router.get("/authorize")
-def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
+def authorize(request: Request) -> RedirectResponse:
     """
-    Route to authorize a super user to access their Gmail account via OAuth 2.0.
+    Route to authorize a user to access their Gmail account via OAuth 2.0.
     This requests consent from the user by interacting with Google's OAuth 2.0 server.
 
     Args:
-        admin (CurrentSuperUser): The super user dependency, to ensure that only
-            authorized super users can access this route.
         request (Request): The HTTP request object.
     """
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
@@ -72,7 +74,7 @@ def authorize(*, admin: CurrentSuperUser, request: Request) -> RedirectResponse:
 
 
 @router.get("/oauth2callback")
-async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectResponse:
+async def oauth2callback(request: Request) -> RedirectResponse:
     """
     The callback endpoint for Google's OAuth 2.0 server response. The OAuth 2.0 server
     responds to the application by sending a request to this URL. If the user approves
@@ -84,11 +86,11 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
 
     An error response:
 
-        https://agora.fastapicloud.com/api/v1/google/oauth2callback?error=access_denied
+        https://agora.com/api/v1/google/oauth2callback?error=access_denied
 
     An authorization code response:
 
-        https://agora.fastapicloud.com/api/v1/google/oauth2callback?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
+        https://agora.com/api/v1/google/oauth2callback?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
     """
     # Specify the state when creating the flow in the callback so that it can
     # verified in the authorization server response.
@@ -110,49 +112,45 @@ async def oauth2callback(admin: CurrentSuperUser, request: Request) -> RedirectR
     flow.fetch_token(authorization_response=authorization_response)
 
     # Store credentials in DB
-    credentials = flow.credentials
-    check_granted_scopes(credentials)
-    await admin.update(**credentials_to_dict(credentials))
+    credentials = cast(Credentials, flow.credentials)
+    user = await check_and_store_user_credentials(credentials)
 
-    return RedirectResponse(url=request.url_for("gmail_list_messages"))
+    # Generate a token for app auth
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = Token(
+        access_token=security.create_access_token(
+            data={"sub": user.pk}, expires_delta=access_token_expires
+        )
+    )
+
+    response = RedirectResponse(url="/")
+    response.set_cookie(
+        key="access_token",
+        value=f"{token.token_type.capitalize()} {token.access_token}",
+        httponly=True,
+        max_age=int(access_token_expires.total_seconds()),
+        secure=settings.FASTAPI_ENV != "development",  # Recommended for production
+    )
+    return response
 
 
-def check_granted_scopes(credentials) -> None:
-    for scope in SCOPES:
-        if scope not in credentials.granted_scopes:
-            raise HTTPException(
-                status_code=400, detail=f"Missing required scope: {scope}"
-            )
-
-
-def credentials_to_dict(credentials) -> dict[str, str | list[str]]:
-    return {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "granted_scopes": credentials.granted_scopes,
-    }
-
-
-def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credentials:
+def get_stored_credentials(user: CurrentUser, request: Request) -> Credentials:
     """
-    Retrieved stored credentials for the authorized super user.
+    Retrieved stored credentials for the authorized user.
 
     Args:
-        admin (CurrentSuperUser): The authorized super user.
+        user (CurrentUser): The authorized user.
         request (Request): The HTTP request object.
 
     Raises:
         HTTPException: if no credentials stored on disk.
 
     Returns:
-        Credentials: the super user's credentials object.
+        Credentials: the user's credentials object.
     """
-    # Load client secrets from the server-side file.
-    client_config = GOOGLE_OAUTH_CLIENT_CONFIG["web"]
-
-    if (
-        admin.token is None and admin.refresh_token is None
-    ) or admin.granted_scopes is None:
+    try:
+        credentials = user_credentials(user)
+    except ValueError:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -160,71 +158,89 @@ def get_stored_credentials(admin: CurrentSuperUser, request: Request) -> Credent
                 f"Go to {request.url_for('authorize')} to authorize access."
             ),
         )
-
-    # Reconstruct the credentials object.
-    credentials = Credentials(
-        refresh_token=admin.refresh_token,
-        scopes=admin.granted_scopes,
-        token=admin.token,
-        client_id=client_config.get("client_id"),
-        client_secret=client_config.get("client_secret"),
-        token_uri=client_config.get("token_uri"),
-    )
-
     return credentials
 
 
-SuperUserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
-
-
-@router.get("/clear")
-async def clear_credentials(admin: CurrentSuperUser) -> RedirectResponse:
-    admin.granted_scopes = None
-    admin.token = None
-    admin.refresh_token = None
-    await admin.update()
-    return RedirectResponse(url="/")
+UserCredentials = Annotated[Credentials, Depends(get_stored_credentials)]
 
 
 @router.get("/revoke")
-async def revoke(credentials: SuperUserCredentials, request: Request) -> RedirectResponse:
+async def revoke(
+    user: CurrentUser, credentials: UserCredentials, request: Request
+) -> RedirectResponse:
     r = requests.post(
         "https://oauth2.googleapis.com/revoke",
         params={"token": credentials.token},
         headers={"content-type": "application/x-www-form-urlencoded"},
     )
     r.raise_for_status()
-    return RedirectResponse(url=request.url_for("clear_credentials"))
+    user.granted_scopes = None
+    user.token = None
+    user.refresh_token = None
+    await user.update()
+
+    response = RedirectResponse(url="/")
+    response.delete_cookie(key="access_token")
+    return response
 
 
 @router.get("/list")
 def gmail_list_messages(
-    credentials: SuperUserCredentials, request: Request, query: str = ""
+    request: Request,
+    current_user: CurrentUser,
+    credentials: UserCredentials,
+    hx_request: Annotated[str | None, Header()] = None,
+    query: str = "",
 ):
     try:
-        service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-        results = (
-            service.users()
-            .messages()
-            .list(userId="me", labelIds=["INBOX"], q=query)
-            .execute()
-        )
-        messages = []
-        messages.extend(results.get("messages", []))
-
-        while "nextPageToken" in results:
-            page_token = results["nextPageToken"]
-            results = (
-                service.users()
-                .messages()
-                .list(userId="me", labelIds=["INBOX"], q=query, pageToken=page_token)
-                .execute()
-            )
-            messages.extend(results.get("messages", []))
-
-        return messages
+        messages = list_messages(credentials, query)
     except google_api_errors.HttpError as e:
         raise HTTPException(
             status_code=500,
             detail=f"An error occured with google's API: {e}",
         )
+
+    context = create_context(current_user)
+    context["messages"] = messages
+    if hx_request:
+        return templates.TemplateResponse(
+            request=request, name="components/_messages.html", context=context
+        )
+    return templates.TemplateResponse(
+        request=request, name="pages/gmail_messages.html", context=context
+    )
+
+
+@router.post("/webhook")
+async def gmail_push_webhook(
+    payload: GooglePubSubPayload, background_tasks: BackgroundTasks
+):
+    if payload.subscription == settings.GOOGLE_WEBHOOK_SUBSCRIPTION:
+        background_tasks.add_task(handle_gmail_notification, payload)
+
+    # Always return HTTP.200 to acknowledge notification
+    return {"ack": True}
+
+
+@router.post("/test-webhook")
+async def test_gmail_push_webhook(
+    current_user: CurrentUser, background_tasks: BackgroundTasks
+):
+    if not current_user.google_api_history_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Missing user's history id",
+        )
+
+    data = GooglePubSubData(
+        emailAddress=current_user.email,
+        historyId=current_user.google_api_history_id,
+    )
+    message = GooglePubSubMessage(
+        data=data, messageId="1234567890", publishTime=datetime.now(timezone.utc)
+    )
+    payload = GooglePubSubPayload(
+        subscription=settings.GOOGLE_WEBHOOK_SUBSCRIPTION, message=message
+    )
+    background_tasks.add_task(handle_gmail_notification, payload)
+    return {"ack": True}

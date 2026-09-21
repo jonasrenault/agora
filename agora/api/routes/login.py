@@ -18,7 +18,7 @@ router = APIRouter(tags=["login"])
 async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     response: Response,
-    redirect_uri: str | None = None,
+    redirect_uri: str = "/",
 ) -> Token | RedirectResponse:
     """
     OAuth2 compatible token login, get an access token for future requests
@@ -36,17 +36,6 @@ async def login_access_token(
         )
     )
 
-    if redirect_uri is not None:
-        redirect = RedirectResponse(url=redirect_uri, status_code=303)
-        redirect.set_cookie(
-            key="access_token",
-            value=f"{token.token_type.capitalize()} {token.access_token}",
-            httponly=True,
-            max_age=int(access_token_expires.total_seconds()),
-            secure=settings.FASTAPI_ENV != "development",  # Recommended for production
-        )
-        return redirect
-
     response.set_cookie(
         key="access_token",
         value=f"{token.token_type.capitalize()} {token.access_token}",
@@ -54,6 +43,7 @@ async def login_access_token(
         max_age=int(access_token_expires.total_seconds()),
         secure=settings.FASTAPI_ENV != "development",  # Recommended for production
     )
+    response.headers["HX-Redirect"] = redirect_uri
     return token
 
 

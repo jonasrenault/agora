@@ -1,6 +1,7 @@
+import json
 from datetime import datetime
 
-from agora.api.models import User
+from agora.api.models import GooglePubSubPayload, User
 
 
 def test_user_remove_slots():
@@ -16,3 +17,18 @@ def test_user_remove_slots():
     assert user.agora_slots == [dates[0]]
     user.remove_slots([dates[0]])
     assert user.agora_slots is None
+
+
+def test_google_pub_sub_payload_parse():
+    input = {
+        "message": {
+            "data": "eyJlbWFpbEFkZHJlc3MiOiAidXNlckBleGFtcGxlLmNvbSIsICJoaXN0b3J5SWQiOiAiMTIzNDU2Nzg5MCJ9",  # noqa: E501
+            "messageId": "2070443601311540",
+            "publishTime": "2021-02-26T19:13:55.749Z",
+        },
+        "subscription": "projects/myproject/subscriptions/mysubscription",
+    }
+
+    payload = GooglePubSubPayload.model_validate_json(json.dumps(input))
+    assert payload.message.data.email == "user@example.com"
+    assert payload.message.data.history_id == "1234567890"
