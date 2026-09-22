@@ -195,7 +195,7 @@ class GmailMessage(BaseModel):
 
 class GooglePubSubData(BaseModel):
     email: EmailStr = PydanticField(alias="emailAddress")
-    history_id: str = PydanticField(alias="historyId")
+    history_id: str = PydanticField(alias="historyId", coerce_numbers_to_str=True)
 
 
 def parse_google_data(data: Any) -> GooglePubSubData:

@@ -188,7 +188,7 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
     user = await get_user_by_email(email=payload.message.data.email)
     if user is None:
         LOGGER.error(f"User {payload.message.data.email} not found.")
-        raise ValueError(f"User {payload.message.data.email} not found.")
+        return
 
     # check if user has received new email
     credentials = user_credentials(user)
