@@ -33,6 +33,7 @@ from agora.google_api import (
     handle_gmail_notification,
     list_messages,
     user_credentials,
+    watch_user,
 )
 
 router = APIRouter(prefix="/google", tags=["google"])
@@ -74,7 +75,9 @@ def authorize(request: Request) -> RedirectResponse:
 
 
 @router.get("/oauth2callback")
-async def oauth2callback(request: Request) -> RedirectResponse:
+async def oauth2callback(
+    request: Request, background_tasks: BackgroundTasks
+) -> RedirectResponse:
     """
     The callback endpoint for Google's OAuth 2.0 server response. The OAuth 2.0 server
     responds to the application by sending a request to this URL. If the user approves
@@ -114,6 +117,9 @@ async def oauth2callback(request: Request) -> RedirectResponse:
     # Store credentials in DB
     credentials = cast(Credentials, flow.credentials)
     user = await check_and_store_user_credentials(credentials)
+
+    # Trigger background task to send watch request for user
+    background_tasks.add_task(watch_user, user)
 
     # Generate a token for app auth
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

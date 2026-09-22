@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -183,7 +184,7 @@ def get_message_details(credentials: Credentials, ids: list[Any]) -> list[GmailM
 
 async def handle_gmail_notification(payload: GooglePubSubPayload):
     # find user in DB
-    LOGGER.info(f"Handling Gmail push notification for {payload.message.data.email}.")
+    LOGGER.info(f"Received Gmail push notification for {payload.message.data.email}.")
     user = await get_user_by_email(email=payload.message.data.email)
     if user is None:
         LOGGER.error(f"User {payload.message.data.email} not found.")
@@ -209,4 +210,32 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
         return
 
     # trigger an automation run
+    LOGGER.info(f"Starting automation run for {user.email}.")
     await run_automation_for_user(user, headless=True, dry_run=False)
+
+
+async def watch_user(user: User):
+    watch_time = datetime.now(timezone.utc)
+    if user.last_watch is not None and (watch_time - user.last_watch) < timedelta(
+        hours=24
+    ):
+        LOGGER.info(f"User {user.email} was last watched on {user.last_watch} (< 24h).")
+        return
+
+    credentials = user_credentials(user)
+    service = build_service(credentials)
+
+    request = {
+        "labelIds": ["INBOX"],
+        "topicName": settings.GOOGLE_WEBHOOK_TOPIC,
+        "labelFilterBehavior": "INCLUDE",
+    }
+    result = service.users().watch(userId="me", body=request).execute()
+
+    if "historyId" in result:
+        LOGGER.info(f"Watch request for user {user.email} successfull")
+        await user.update(
+            last_watch=watch_time, google_api_history_id=result["historyId"]
+        )
+    else:
+        LOGGER.error(f"Watch request for user {user.email} failed:\n{result}")

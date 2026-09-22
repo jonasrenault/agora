@@ -1,14 +1,17 @@
 import base64
+import logging
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, TypeVar
 
 from aredis_om import EmbeddedJsonModel, Field, JsonModel, get_redis_connection
-from pydantic import BaseModel, BeforeValidator, EmailStr, computed_field
+from pydantic import BaseModel, BeforeValidator, EmailStr, ValidationError, computed_field
 from pydantic import Field as PydanticField
 
 from agora.config import settings
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Token(BaseModel):
@@ -88,11 +91,12 @@ class User(JsonModel, index=True):  # type: ignore
         default_factory=lambda: datetime.now(timezone.utc), index=True, sortable=True
     )
 
-    # Google Credentials
+    # Google API
     token: str | None = Field(default=None, index=False)
     refresh_token: str | None = Field(default=None, index=False)
     granted_scopes: list[str] | None = Field(default=None, index=False)
     google_api_history_id: str | None = Field(default=None, index=False)
+    last_watch: datetime | None = Field(default=None, index=True, sortable=True)
 
     # Agora
     agora_email: EmailStr | None = Field(default=None, index=False)
@@ -196,9 +200,16 @@ class GooglePubSubData(BaseModel):
 
 def parse_google_data(data: Any) -> GooglePubSubData:
     if isinstance(data, str):
-        return GooglePubSubData.model_validate_json(
-            base64.b64decode(data).decode("utf-8")
-        )
+        decoded = base64.b64decode(data).decode("utf-8")
+        try:
+            return GooglePubSubData.model_validate_json(decoded)
+        except ValidationError:
+            LOGGER.error(
+                f"Unable to parse GooglePubSubMessage.data: {decoded}", exc_info=True
+            )
+            return GooglePubSubData(
+                emailAddress="invalid@agora.fr", historyId="1234567890"
+            )
     return data
 
 
