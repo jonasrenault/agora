@@ -97,6 +97,7 @@ class User(JsonModel, index=True):  # type: ignore
     granted_scopes: list[str] | None = Field(default=None, index=False)
     google_api_history_id: str | None = Field(default=None, index=False)
     last_watch: datetime | None = Field(default=None, index=True, sortable=True)
+    last_notification: datetime | None = Field(default=None, index=True, sortable=True)
 
     # Agora
     agora_email: EmailStr | None = Field(default=None, index=False)

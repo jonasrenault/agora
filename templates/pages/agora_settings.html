@@ -8,7 +8,7 @@
 
     <div class="max-w-md w-full">
         <div>
-            <form class="space-y-6" method="POST" action="{{ url_for('update_agora_settings') }}">
+            <form class="space-y-6 mb-5" method="POST" action="{{ url_for('update_agora_settings') }}">
                 <div>
                     <label for="email" class="mb-2 font-medium text-sm inline-block">Agora Portal Email</label>
                     <input type="email" id="email" name="agora_email" placeholder="john@agora.fr"
@@ -29,6 +29,26 @@
                     Update settings</button>
             </form>
 
+            {% if user.last_run is not none %}
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Last Automation Run</legend>
+                <p class="label">{{ user.last_run.strftime('%d-%m-%Y %H:%M:%S') }}</p>
+            </fieldset>
+            {% endif %}
+
+            {% if user.last_watch is not none %}
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Last Watch Request</legend>
+                <p class="label">{{ user.last_watch.strftime('%d-%m-%Y %H:%M:%S') }}</p>
+            </fieldset>
+            {% endif %}
+
+            {% if user.last_notification is not none %}
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Last Push Notification</legend>
+                <p class="label">{{ user.last_notification.strftime('%d-%m-%Y %H:%M:%S') }}</p>
+            </fieldset>
+            {% endif %}
         </div>
     </div>
 </div>

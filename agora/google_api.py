@@ -183,17 +183,46 @@ def get_message_details(credentials: Credentials, ids: list[Any]) -> list[GmailM
 
 
 async def handle_gmail_notification(payload: GooglePubSubPayload):
-    # find user in DB
-    LOGGER.info(f"Received Gmail push notification for {payload.message.data.email}.")
+    """
+    Async background task to process a gmail push notification.
+    The function first checks if the notification corresponds to a valid user, then
+    checks that user's mailbox for new mail from `AGORA_NOTIFICATIONS_SENDER`.
+
+    If there is new mail, it triggers an automation run.
+
+    Args:
+        payload (GooglePubSubPayload): the payload of the push notification.
+    """
+    LOGGER.info(
+        f"Received Gmail push notification #{payload.message.messageId} "
+        f"for {payload.message.data.email}."
+    )
+    # Find user in DB
     user = await get_user_by_email(email=payload.message.data.email)
     if user is None:
         LOGGER.error(f"User {payload.message.data.email} not found.")
         return
 
-    # check if user has received new email
+    # Check notification has not already been handled
+    if user.google_api_history_id == payload.message.data.history_id:
+        LOGGER.info(
+            f"Notification's history id {payload.message.data.history_id} "
+            "was already processed for user."
+        )
+        return
+
+    # udpate user history id
+    notification_time = datetime.now(timezone.utc)
+    history_id = user.google_api_history_id
+    await user.update(
+        google_api_history_id=payload.message.data.history_id,
+        last_notification=notification_time,
+    )
+
+    # Check if user has received new email
     credentials = user_credentials(user)
-    if user.google_api_history_id is not None:
-        messages = list_messages_history(credentials, user.google_api_history_id)
+    if history_id is not None:
+        messages = list_messages_history(credentials, history_id)
     else:
         messages = list_messages(credentials, "")
     has_notification = False
@@ -202,14 +231,11 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
             has_notification = True
             break
 
-    # udpate user history id
-    await user.update(google_api_history_id=payload.message.data.history_id)
-
     if not has_notification:
         LOGGER.info("No agora portal notification found in user's inbox.")
         return
 
-    # trigger an automation run
+    # Trigger an automation run
     LOGGER.info(f"Starting automation run for {user.email}.")
     await run_automation_for_user(user, headless=True, dry_run=False)
 
