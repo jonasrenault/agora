@@ -432,17 +432,21 @@ async def book_dates(
 
 
 async def run_automation_for_user(user: User, headless: bool, dry_run: bool):
-    if not user.agora_slots:
-        raise ValueError("No slots to reserve for current user.")
-
-    if not user.agora_password or not user.agora_email:
-        raise ValueError("Undefined Agora email or password for current user.")
-
     async with USER_RUN_SEMAPHORE:  # Max 1 concurrent tasks
         LOGGER.info(
             f"Starting automation run for user {user.email} "
             f"with Agora account {user.agora_email}."
         )
+
+        # reload user to ensure its properties are not stale due to semaphore waiting
+        user = await User.get(user.pk)
+
+        if not user.agora_slots:
+            raise ValueError("No slots to reserve for current user.")
+
+        if not user.agora_password or not user.agora_email:
+            raise ValueError("Undefined Agora email or password for current user.")
+
         agora_password = decrypt(user.agora_password, settings.SECRET_KEY)
         run = await book_dates(
             email=user.agora_email,
