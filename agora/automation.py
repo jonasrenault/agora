@@ -439,6 +439,10 @@ async def run_automation_for_user(user: User, headless: bool, dry_run: bool):
         raise ValueError("Undefined Agora email or password for current user.")
 
     async with USER_RUN_SEMAPHORE:  # Max 1 concurrent tasks
+        LOGGER.info(
+            f"Starting automation run for user {user.email} "
+            f"with Agora account {user.agora_email}."
+        )
         agora_password = decrypt(user.agora_password, settings.SECRET_KEY)
         run = await book_dates(
             email=user.agora_email,

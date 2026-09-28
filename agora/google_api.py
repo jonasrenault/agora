@@ -236,11 +236,17 @@ async def handle_gmail_notification(payload: GooglePubSubPayload):
         return
 
     # Trigger an automation run
-    LOGGER.info(f"Starting automation run for {user.email}.")
     await run_automation_for_user(user, headless=True, dry_run=False)
 
 
 async def watch_user(user: User):
+    """
+    Async background task to send a watch request to Gmail API.
+    The watch request is not sent if a previous watch request was sent less than 24h ago.
+
+    Args:
+        user (User): the user.
+    """
     watch_time = datetime.now(timezone.utc)
     if user.last_watch is not None and (watch_time - user.last_watch) < timedelta(
         hours=24
