@@ -271,3 +271,10 @@ async def watch_user(user: User):
         )
     else:
         LOGGER.error(f"Watch request for user {user.email} failed:\n{result}")
+
+
+async def unwatch_user(user: User):
+    credentials = user_credentials(user)
+    service = build_service(credentials)
+    service.users().stop(userId="me").execute()
+    await user.update(last_watch=None)

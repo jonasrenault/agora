@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+import json
+from datetime import timedelta
 from typing import Annotated, cast
 
 import requests
@@ -9,7 +10,7 @@ from fastapi import (
     Header,
     HTTPException,
     Request,
-    status,
+    Response,
 )
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
@@ -19,8 +20,6 @@ from googleapiclient import errors as google_api_errors
 from agora.api import security, templates
 from agora.api.deps import CurrentUser
 from agora.api.models import (
-    GooglePubSubData,
-    GooglePubSubMessage,
     GooglePubSubPayload,
     Token,
 )
@@ -32,6 +31,7 @@ from agora.google_api import (
     check_and_store_user_credentials,
     handle_gmail_notification,
     list_messages,
+    unwatch_user,
     user_credentials,
     watch_user,
 )
@@ -228,25 +228,16 @@ async def gmail_push_webhook(
     return {"ack": True}
 
 
-@router.post("/test-webhook")
-async def test_gmail_push_webhook(
-    current_user: CurrentUser, background_tasks: BackgroundTasks
-):
-    if not current_user.google_api_history_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Missing user's history id",
-        )
-
-    data = GooglePubSubData(
-        emailAddress=current_user.email,
-        historyId=current_user.google_api_history_id,
+@router.post("/unwatch")
+async def unwatch(current_user: CurrentUser, response: Response):
+    await unwatch_user(current_user)
+    response.headers["HX-Trigger"] = json.dumps(
+        {
+            "show-toast": {
+                "target": "#toast",
+                "level": "success",
+                "message": "<span>Unwatch request successful</span>",
+            }
+        }
     )
-    message = GooglePubSubMessage(
-        data=data, messageId="1234567890", publishTime=datetime.now(timezone.utc)
-    )
-    payload = GooglePubSubPayload(
-        subscription=settings.GOOGLE_WEBHOOK_SUBSCRIPTION, message=message
-    )
-    background_tasks.add_task(handle_gmail_notification, payload)
-    return {"ack": True}
+    return {"unwatch": True}
