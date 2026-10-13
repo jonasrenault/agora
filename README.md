@@ -42,6 +42,8 @@ REDIS_RESET_ON_STARTUP=False
 GOOGLE_OAUTH_CLIENT_ID=********
 GOOGLE_OAUTH_CLIENT_SECRET=********
 GOOGLE_OAUTH_PROJECT_ID=********
+GOOGLE_WEBHOOK_TOPIC=********
+GOOGLE_WEBHOOK_SUBSCRIPTION=********
 ```
 
 ## FastAPI
@@ -60,3 +62,13 @@ The entrypoint for the FastAPI app is defined in `pyproject.toml`:
 [tool.fastapi]
 entrypoint = "agora.api.main:app"
 ```
+
+## Docs
+
+Documentation for the application can be served by running
+
+```console
+uv run mkdocs serve
+```
+
+and is available on `http://127.0.0.1:8000/`.

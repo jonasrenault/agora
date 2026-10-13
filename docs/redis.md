@@ -1,6 +1,6 @@
 # Redis
 
-The application uses Redis with [Redis-OM](https://github.com/redis/redis-om-python) for database.
+The application uses Redis with [Redis-OM](https://github.com/redis/redis-om-python) for database storage.
 
 ## Setup
 

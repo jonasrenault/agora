@@ -17,8 +17,23 @@
 <body>
     {% block content %}{% endblock %}
 
+    <div id="toast" class="toast" style="display: none">
+        <div id="toast-content" class="alert alert-success alert-soft">
+        </div>
+    </div>
+
     <script defer src="{{ asset('js/vendor/htmx.min.js') }}"></script>
     <script defer src="{{ asset('js/vendor/response-targets.min.js') }}"></script>
+
+    <script>
+        const toast = document.getElementById("toast");
+        const toastContent = document.getElementById("toast-content")
+        toast.addEventListener("show-toast", function (evt) {
+            toast.style.display = 'block'
+            toastContent.innerHTML = evt.detail.message
+            setTimeout(() => toast.style.display = 'none', 5000)
+        })
+    </script>
 </body>
 
 </html>
