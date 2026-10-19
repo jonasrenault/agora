@@ -26,7 +26,7 @@ GOOGLE_OAUTH_CLIENT_CONFIG = {
         "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
         "redirect_uris": [
             "http://127.0.0.1:8000/api/v1/google/oauth2callback",
-            "https://agora-production-dba8.up.railway.app/api/v1/google/oauth2callback",
+            "https://agora-production-1c23.up.railway.app/api/v1/google/oauth2callback",
             "http://localhost/api/v1/google/oauth2callback",
         ],
     }
