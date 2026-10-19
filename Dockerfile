@@ -21,14 +21,14 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies
-RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv,target=/root/.cache/uv \
+RUN --mount=type=cache,id=s/792aea4e-6920-435e-b9e3-4724f0dc3dfa-/root/.cache/uv,target=/root/.cache/uv \
     uv sync --locked --no-install-project
 
 # Copy the project into the image
 COPY . /app
 
 # Sync the project
-RUN --mount=type=cache,id=s/fedbe1ac-3dfe-4f25-828e-4fa18645a666-/root/.cache/uv,target=/root/.cache/uv \
+RUN --mount=type=cache,id=s/792aea4e-6920-435e-b9e3-4724f0dc3dfa-/root/.cache/uv,target=/root/.cache/uv \
     uv sync --locked
 
 ENV PATH="/app/.venv/bin:$PATH"
